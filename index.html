@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>逆勇者 〜魔王を倒してからが本番〜</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+    background: #0d0d1a;
+    color: #e8e8f0;
+    font-size: 16px;
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  #app {
+    height: 100dvh;
+    max-width: 680px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+  }
+  /* ===== HUD ===== */
+  #hud {
+    display: none;
+    padding: 8px 12px;
+    background: #14142a;
+    border-bottom: 2px solid #3a3a6a;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  #hud .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  #hud .zanto { color: #ff8a8a; font-weight: bold; }
+  .bar { height: 8px; background: #2a2a44; border-radius: 4px; overflow: hidden; flex: 1; min-width: 60px; }
+  .bar > div { height: 100%; transition: width 0.3s; }
+  .bar.hp > div { background: #5ad15a; }
+  .bar.hp.low > div { background: #e05a5a; }
+  .bar.mp > div { background: #5a8ae0; }
+  .barwrap { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 120px; }
+  .barwrap span { font-size: 12px; white-space: nowrap; }
+  /* ===== ステージ ===== */
+  #stage {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+  }
+  /* タイトル */
+  .title-scene { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 24px; text-align: center; }
+  .title-scene h1 { font-size: 40px; letter-spacing: 8px; color: #ffd76a; text-shadow: 0 0 20px rgba(255,215,106,0.4); }
+  .title-scene .sub { color: #9a9ac0; font-size: 15px; }
+  /* 戦闘 */
+  .battle-scene { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; }
+  .enemy-icon { font-size: 96px; line-height: 1.2; transition: opacity 0.5s; }
+  .enemy-icon.shake { animation: shake 0.3s; }
+  .enemy-icon.dead { opacity: 0; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+  }
+  .enemy-name { font-size: 18px; font-weight: bold; }
+  .enemy-hpbar { width: 70%; max-width: 300px; }
+  .subunits { display: flex; gap: 24px; margin-top: 18px; }
+  .unit { text-align: center; font-size: 13px; color: #c0c0d8; }
+  .unit .u-icon { font-size: 40px; }
+  .unit .bar { width: 80px; margin: 4px auto 0; }
+  .unit.out { opacity: 0.35; }
+  .unit .u-state { color: #ff8a8a; }
+  /* マップ */
+  .map-scene h2 { color: #ffd76a; font-size: 18px; margin-bottom: 4px; }
+  .map-scene .map-sub { color: #9a9ac0; font-size: 13px; margin-bottom: 14px; }
+  .region {
+    background: #1a1a30;
+    border: 2px solid #3a3a6a;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .region.locked { opacity: 0.45; }
+  .region.cleared { border-color: #3a6a3a; }
+  .region .r-icon { font-size: 32px; }
+  .region .r-info { flex: 1; }
+  .region .r-name { font-weight: bold; }
+  .region .r-state { font-size: 13px; color: #9a9ac0; }
+  .region .r-state .alert { color: #ff8a8a; }
+  .region .r-state .ok { color: #7ad17a; }
+  .map-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  /* エンディング */
+  .ending-scene { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 18px; text-align: center; line-height: 2; }
+  .ending-scene .the-beginning { font-size: 32px; letter-spacing: 6px; color: #ffd76a; margin-top: 12px; }
+  /* ===== メッセージ窓 ===== */
+  #msgwin {
+    display: none;
+    margin: 0 12px;
+    padding: 14px 16px;
+    min-height: 84px;
+    background: #14142a;
+    border: 2px solid #6a6aaa;
+    border-radius: 10px;
+    line-height: 1.7;
+    cursor: pointer;
+  }
+  #msgwin .next { color: #ffd76a; animation: blink 1s infinite; float: right; }
+  @keyframes blink { 50% { opacity: 0; } }
+  /* ===== コマンド ===== */
+  #cmds {
+    padding: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  #cmds:empty { padding: 0 0 env(safe-area-inset-bottom); }
+  button {
+    font-family: inherit;
+    font-size: 16px;
+    padding: 14px 12px;
+    border: 2px solid #6a6aaa;
+    border-radius: 10px;
+    background: #22224a;
+    color: #e8e8f0;
+    cursor: pointer;
+    min-height: 52px;
+  }
+  button:active { background: #33336a; }
+  button:disabled { opacity: 0.4; }
+  button.primary { border-color: #ffd76a; background: #4a3a14; color: #ffd76a; }
+  button.wide { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hud"></header>
+  <main id="stage"></main>
+  <div id="msgwin"></div>
+  <div id="cmds"></div>
+</div>
+<script>
+'use strict';
+
+// ===== 定数 =====
+const SAVE_KEY = 'gyaku-rpg-save';
+const HERB_HEAL_RATE = 0.4;     // やくそうは最大HPの40%回復
+const SKILL_MP_COST = 8;
+const HERB_BASE_PRICE = 300;    // 戦後インフレで買うたび2倍になる
+
+const REGIONS = [
+  { name: '魔王城',         icon: '🏰', desc: 'すべてが終わった場所',
+    enemy: { name: '魔王親衛隊デュラハン', icon: '💀', hp: 700, atk: 240, def: 140, drain: 600, gold: 3000 }, count: 3 },
+  { name: '竜の山脈',       icon: '🌋', desc: '古竜たちの住処',
+    enemy: { name: 'エンシェントドラゴン', icon: '🐉', hp: 550, atk: 180, def: 110, drain: 550, gold: 2500 }, count: 4 },
+  { name: '黒鉄の砦',       icon: '⚔️', desc: '魔王軍の前線基地跡',
+    enemy: { name: 'デスナイト',           icon: '🛡️', hp: 380, atk: 120, def: 75,  drain: 480, gold: 2000 }, count: 5 },
+  { name: 'ねじれの森',     icon: '🌲', desc: '村への帰り道',
+    enemy: { name: 'キラーウルフ',         icon: '🐺', hp: 200, atk: 65,  def: 35,  drain: 350, gold: 1200 }, count: 6 },
+  { name: 'はじまりの平原', icon: '🌾', desc: '故郷の村のすぐそば',
+    enemy: { name: 'スライム',             icon: '💧', hp: 70,  atk: 22,  def: 8,   drain: 200, gold: 500 },  count: 4,
+    boss:  { name: 'さいごのスライム',     icon: '💧', hp: 110, atk: 26,  def: 12,  drain: 0,   gold: 0 } },
+];
+
+// ===== 状態 =====
+let G = null;          // セーブ対象のゲーム状態
+let battle = null;     // 戦闘中の一時状態
+let msgQueue = [];
+let msgDone = null;
+
+function newGame() {
+  return {
+    exp: 9800,              // レベル99相当。敵を倒すと減っていく
+    hp: 0, mp: 0,           // openingで満タンに初期化
+    gold: 50000,
+    herbs: 5,
+    herbBought: 0,
+    kills: REGIONS.map(() => 0),
+    bossDead: false,
+    opened: false,          // オープニング（魔王戦）を終えたか
+    savedCitizens: 0,
+    lostCitizens: 0,
+    seenHostageIntro: false,
+  };
+}
+
+// ===== レベル・ステータス（経験値から算出。減るとレベルも下がる）=====
+const lvOf = (exp) => Math.min(99, Math.max(1, Math.floor(exp / 100) + 1));
+const stats = () => {
+  const lv = lvOf(G.exp);
+  return { lv, maxHp: 40 + lv * 10, maxMp: 10 + lv * 2, atk: 8 + lv * 3, def: 4 + lv * 2 };
+};
+const remainingEnemies = () =>
+  REGIONS.reduce((n, r, i) => n + (r.count - G.kills[i]) + (r.boss && !G.bossDead ? 1 : 0), 0);
+const regionCleared = (i) =>
+  G.kills[i] >= REGIONS[i].count && (!REGIONS[i].boss || G.bossDead);
+const regionUnlocked = (i) => i === 0 || regionCleared(i - 1);
+const herbPrice = () => HERB_BASE_PRICE * Math.pow(2, G.herbBought);
+
+// ===== セーブ =====
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) {} }
+function load() {
+  try { return JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { return null; }
+}
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+
+// ===== DOM ヘルパー =====
+const $ = (id) => document.getElementById(id);
+const stage = $('stage'), hud = $('hud'), msgwin = $('msgwin'), cmds = $('cmds');
+
+function renderHud() {
+  if (!G || !G.opened) { hud.style.display = 'none'; return; }
+  const s = stats();
+  const hpPct = Math.round(G.hp / s.maxHp * 100);
+  hud.style.display = 'block';
+  hud.innerHTML = `
+    <div class="row">
+      <span>勇者 Lv.${s.lv}</span>
+      <span class="zanto">残党 あと${remainingEnemies()}体</span>
+      <span>💰 ${G.gold.toLocaleString()}G　🌿 ×${G.herbs}</span>
+    </div>
+    <div class="row">
+      <div class="barwrap"><span>HP ${G.hp}/${s.maxHp}</span>
+        <div class="bar hp ${hpPct <= 25 ? 'low' : ''}"><div style="width:${hpPct}%"></div></div></div>
+      <div class="barwrap"><span>MP ${G.mp}/${s.maxMp}</span>
+        <div class="bar mp"><div style="width:${Math.round(G.mp / s.maxMp * 100)}%"></div></div></div>
+    </div>`;
+}
+
+function setCmds(list) {
+  cmds.innerHTML = '';
+  for (const c of list) {
+    const b = document.createElement('button');
+    b.textContent = c.label;
+    if (c.primary) b.classList.add('primary');
+    if (c.wide) b.classList.add('wide');
+    if (c.disabled) b.disabled = true;
+    b.onclick = c.fn;
+    cmds.appendChild(b);
+  }
+}
+
+// ===== メッセージ窓（タップ送り）=====
+function showMsgs(msgs, done) {
+  msgQueue = msgs.slice();
+  msgDone = done;
+  setCmds([]);
+  msgwin.style.display = 'block';
+  nextMsg();
+}
+function nextMsg() {
+  if (msgQueue.length === 0) {
+    msgwin.style.display = 'none';
+    const fn = msgDone; msgDone = null;
+    if (fn) fn();
+    return;
+  }
+  msgwin.innerHTML = msgQueue.shift() + '<span class="next">▼</span>';
+}
+msgwin.addEventListener('click', () => { if (msgDone) nextMsg(); });
+
+// ===== タイトル =====
+function showTitle() {
+  hud.style.display = 'none';
+  msgwin.style.display = 'none';
+  stage.innerHTML = `
+    <div class="title-scene">
+      <div>
+        <h1>逆勇者</h1>
+        <div class="sub">〜魔王を倒してからが本番〜</div>
+      </div>
+      <div class="sub">敵は有限。すべて殲滅したら、物語は終わる。</div>
+    </div>`;
+  const saved = load();
+  const list = [{ label: 'はじめから', primary: true, wide: !saved, fn: () => { clearSave(); G = newGame(); showOpening(); } }];
+  if (saved) list.push({ label: 'つづきから', fn: () => { G = Object.assign(newGame(), saved); renderHud(); showMap(); } });
+  setCmds(list);
+}
+
+// ===== オープニング（魔王戦）=====
+function showOpening() {
+  const s = stats();
+  G.hp = s.maxHp; G.mp = s.maxMp;
+  stage.innerHTML = `
+    <div class="battle-scene">
+      <div class="enemy-icon" id="e-icon">😈</div>
+      <div class="enemy-name">魔王</div>
+    </div>`;
+  showMsgs([
+    'ここは魔王城・玉座の間。',
+    '魔王「よくぞここまで来た、勇者よ…」',
+    '魔王「我を倒しても、世界に平和など——」',
+  ], () => {
+    setCmds([{ label: '⚔️ ゆうしゃぎり', primary: true, wide: true, fn: () => {
+      $('e-icon').classList.add('shake');
+      setTimeout(() => $('e-icon').classList.add('dead'), 400);
+      showMsgs([
+        '勇者のゆうしゃぎり！　99999のダメージ！',
+        '魔王「はや……」',
+        '魔王をたおした！',
+        'こうして、世界を救う物語は<b>オープニングで終わった</b>。',
+        'だが斥候の報告によると、世界にはまだ魔物の残党が <b>23体</b> 残っているという。',
+        '勇者は最初から持っていた飛行艇に乗り込み、地上へ戻る。',
+        '残党をすべて殲滅し、故郷の村へ帰るのだ。',
+        '人類側の「残党討伐隊」もすでに動き出している。だが彼らのやり方は——荒っぽいと評判だ。',
+        'ただし——魔王を倒した今、戦うたびに<b>経験値は失われ、レベルは下がっていく</b>。',
+        '物語はここから、終わりに向かって始まる。',
+      ], () => { G.opened = true; renderHud(); save(); showMap(); });
+    }}]);
+  });
+}
+
+// ===== マップ（飛行艇移動）=====
+function showMap() {
+  renderHud();
+  save();
+  let html = `<div class="map-scene">
+    <h2>🛩 飛行艇 — 行き先を選べ</h2>
+    <div class="map-sub">魔王城から故郷へ。世界を逆走する。</div>`;
+  let current = -1;
+  REGIONS.forEach((r, i) => {
+    const unlocked = regionUnlocked(i);
+    const cleared = regionCleared(i);
+    if (unlocked && !cleared && current < 0) current = i;
+    const left = (r.count - G.kills[i]) + (r.boss && !G.bossDead ? 1 : 0);
+    let state;
+    if (!unlocked) state = '🔒 まだ瘴気が濃くて近づけない';
+    else if (cleared) state = '<span class="ok">✓ 殲滅完了</span>';
+    else state = `<span class="alert">${r.enemy.name} 残り${left}体</span>`;
+    html += `
+      <div class="region ${unlocked ? '' : 'locked'} ${cleared ? 'cleared' : ''}">
+        <div class="r-icon">${r.icon}</div>
+        <div class="r-info">
+          <div class="r-name">${r.name}</div>
+          <div class="r-state">${r.desc} — ${state}</div>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+
+  if (current < 0) { showEndingGate(); return; }
+  const r = REGIONS[current];
+  const isBoss = G.kills[current] >= r.count && r.boss && !G.bossDead;
+  const target = isBoss ? r.boss : r.enemy;
+  const s = stats();
+  setCmds([
+    { label: `⚔️ ${r.name}で${target.name}と戦う`, primary: true, wide: true, fn: () => startBattle(current, isBoss) },
+    { label: `🌿 やくそうを使う (×${G.herbs})`, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: useHerbOnMap },
+    { label: `💰 行商人 (${herbPrice().toLocaleString()}G)`, fn: visitMerchant },
+  ]);
+}
+
+function useHerbOnMap() {
+  const s = stats();
+  G.herbs--;
+  const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * HERB_HEAL_RATE));
+  G.hp += heal;
+  renderHud();
+  showMsgs([`やくそうを使った。HPが ${heal} 回復した。`], showMap);
+}
+
+function visitMerchant() {
+  const price = herbPrice();
+  const lines = [
+    '行商人「へっへっへ、やくそうだよ。戦後はなにかと物入りでねぇ」',
+    `行商人「いまなら <b>${price.toLocaleString()}G</b> ！　明日はもっと高いよ」`,
+  ];
+  showMsgs(lines, () => {
+    setCmds([
+      { label: `買う (${price.toLocaleString()}G)`, primary: true, disabled: G.gold < price,
+        fn: () => {
+          G.gold -= price; G.herbs++; G.herbBought++;
+          renderHud();
+          showMsgs(['やくそうを手に入れた。', '行商人「毎度あり！　次はこの倍だよ」'], showMap);
+        } },
+      { label: 'やめる', fn: showMap },
+    ]);
+  });
+}
+
+// ===== 戦闘 =====
+const dmg = (atk, def) => Math.max(1, Math.round((atk - def / 2) * (0.85 + Math.random() * 0.3)));
+
+function startBattle(regionIdx, isBoss) {
+  const r = REGIONS[regionIdx];
+  const def = isBoss ? r.boss : r.enemy;
+  const hostage = !isBoss;  // 残党は市民を人質に取っている。ただし最後の一体だけは一対一
+  battle = { regionIdx, isBoss, hostage, name: def.name, icon: def.icon,
+             hp: def.hp, maxHp: def.hp, atk: def.atk, def: def.def,
+             drain: def.drain, gold: def.gold, guarding: false };
+  let sub = '';
+  if (hostage) {
+    battle.citizen = { hp: 55, maxHp: 55, dead: false };
+    battle.ally = { hp: Math.round(def.hp * 0.45), maxHp: Math.round(def.hp * 0.45),
+                    def: Math.round(def.def * 0.5), down: false };
+    sub = `
+      <div class="subunits">
+        <div class="unit" id="u-citizen"><div class="u-icon">🧑‍🌾</div>市民（人質）
+          <div class="bar hp"><div id="c-hp" style="width:100%"></div></div></div>
+        <div class="unit" id="u-ally"><div class="u-icon">💂</div>討伐隊の兵士
+          <div class="u-state" id="a-state">突撃中！</div></div>
+      </div>`;
+  }
+  stage.innerHTML = `
+    <div class="battle-scene">
+      <div class="enemy-icon" id="e-icon" ${isBoss ? 'style="font-size:140px"' : ''}>${battle.icon}</div>
+      <div class="enemy-name">${battle.name}</div>
+      <div class="bar hp enemy-hpbar"><div id="e-hp" style="width:100%"></div></div>
+      ${sub}
+    </div>`;
+  let intro;
+  if (isBoss) {
+    intro = [`${battle.name} があらわれた！`,
+             'これが世界に残された、最後の魔物だ。',
+             '人質はいない。討伐隊もいない。',
+             'ただ一体の魔物と、一人の人間が向かい合うだけだ。',
+             'スライムが、こんなに大きく見えたことがあっただろうか。'];
+  } else if (!G.seenHostageIntro) {
+    G.seenHostageIntro = true;
+    intro = [`${battle.name} があらわれた！`,
+             `${battle.name}は市民を人質に取っている！`,
+             '討伐隊の兵士が突撃してきた！',
+             '兵士「人質ごと殲滅します。多少の犠牲はやむを得ません」',
+             '勇者は耳を疑った。守るべきものを間違えるな。',
+             '「かばう」で市民を巻き込みから守れ。「みねうち」で兵士を止められる。'];
+  } else {
+    intro = [`${battle.name} があらわれた！　市民を人質に取っている！`];
+  }
+  showMsgs(intro, battleMenu);
+}
+
+function battleMenu() {
+  const s = stats();
+  renderHud();
+  const list = [
+    { label: '⚔️ たたかう', primary: true, fn: () => playerAct('attack') },
+    { label: `✨ ゆうしゃぎり (MP${SKILL_MP_COST})`, disabled: G.mp < SKILL_MP_COST, fn: () => playerAct('skill') },
+    { label: `🌿 やくそう (×${G.herbs})`, disabled: G.herbs <= 0, fn: () => playerAct('herb') },
+    { label: '🏃 にげる', fn: () => playerAct('flee') },
+  ];
+  if (battle.hostage && !battle.ally.down) {
+    list.splice(2, 0,
+      { label: '🛡 かばう（市民）', disabled: battle.citizen.dead, fn: () => playerAct('guard') },
+      { label: '⚡ みねうち（兵士）', fn: () => playerAct('mineuchi') });
+  }
+  setCmds(list);
+}
+
+function playerAct(kind) {
+  const s = stats();
+  const msgs = [];
+  battle.guarding = false;
+  if (kind === 'attack' || kind === 'skill') {
+    let d = dmg(s.atk, battle.def);
+    if (kind === 'skill') { d *= 2; G.mp -= SKILL_MP_COST; }
+    battle.hp = Math.max(0, battle.hp - d);
+    msgs.push(kind === 'skill'
+      ? `勇者のゆうしゃぎり！　${battle.name}に ${d} のダメージ！`
+      : `勇者のこうげき！　${battle.name}に ${d} のダメージ！`);
+    hitEnemy();
+  } else if (kind === 'herb') {
+    G.herbs--;
+    const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * HERB_HEAL_RATE));
+    G.hp += heal;
+    msgs.push(`やくそうを使った。HPが ${heal} 回復した。`);
+  } else if (kind === 'guard') {
+    battle.guarding = true;
+    msgs.push('勇者は市民の前に立ちはだかった！');
+  } else if (kind === 'mineuchi') {
+    const d = dmg(s.atk, battle.ally.def);
+    battle.ally.hp = Math.max(0, battle.ally.hp - d);
+    msgs.push(`勇者のみねうち！　兵士に ${d} のダメージ！`);
+    if (battle.ally.hp <= 0) {
+      battle.ally.down = true;
+      $('u-ally').classList.add('out');
+      $('a-state').textContent = '気絶';
+      msgs.push('兵士はのびてしまった！');
+      msgs.push('兵士「な、なぜ味方の私を……」');
+    }
+  } else if (kind === 'flee') {
+    const fleeMsgs = ['勇者は逃げ出した！', 'もう誰も追ってこない。魔王は死んだのだから。', 'しかし、残党は1体も減っていない……'];
+    if (battle.hostage) fleeMsgs.push('人質を置いてきてしまった……');
+    showMsgs(fleeMsgs, () => { battle = null; showMap(); });
+    return;
+  }
+  renderHud();
+
+  if (battle.hp <= 0) { showMsgs(msgs, victory); return; }
+
+  // 敵の反撃
+  const ed = dmg(battle.atk, s.def);
+  G.hp = Math.max(0, G.hp - ed);
+  msgs.push(`${battle.name}のこうげき！　勇者は ${ed} のダメージを受けた！`);
+  renderHud();
+  if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
+
+  // 討伐隊の兵士のターン（人質戦のみ）：敵を攻撃するが市民を巻き込む
+  if (battle.hostage && !battle.ally.down) {
+    const ad = Math.max(1, Math.round(battle.maxHp * 0.07 * (0.85 + Math.random() * 0.3)));
+    battle.hp = Math.max(0, battle.hp - ad);
+    msgs.push(`兵士の無謀な突撃！　${battle.name}に ${ad} のダメージ！`);
+    hitEnemy();
+    if (battle.hp <= 0) { showMsgs(msgs, victory); return; }
+    if (!battle.citizen.dead) {
+      const sd = 15 + Math.floor(Math.random() * 11);
+      if (battle.guarding) {
+        G.hp = Math.max(0, G.hp - sd);
+        msgs.push(`巻き込みの一撃を勇者が受け止めた！　${sd} のダメージ！`);
+        renderHud();
+        if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
+      } else {
+        battle.citizen.hp = Math.max(0, battle.citizen.hp - sd);
+        $('c-hp').style.width = Math.round(battle.citizen.hp / battle.citizen.maxHp * 100) + '%';
+        msgs.push(`攻撃が市民を巻き込んだ！　市民に ${sd} のダメージ！`);
+        if (battle.citizen.hp <= 0) {
+          battle.citizen.dead = true;
+          $('u-citizen').classList.add('out');
+          msgs.push('市民は倒れてしまった……');
+          msgs.push('兵士「多少の犠牲はやむを得ません」');
+        }
+      }
+    }
+  }
+  showMsgs(msgs, battleMenu);
+}
+
+function hitEnemy() {
+  const icon = $('e-icon');
+  icon.classList.remove('shake');
+  void icon.offsetWidth;  // アニメーション再発火のためのリフロー
+  icon.classList.add('shake');
+  $('e-hp').style.width = Math.round(battle.hp / battle.maxHp * 100) + '%';
+}
+
+function victory() {
+  $('e-icon').classList.add('dead');
+  const before = stats().lv;
+  const msgs = [`${battle.name} をたおした！`];
+
+  if (battle.hostage) {
+    if (!battle.citizen.dead) {
+      G.savedCitizens++;
+      G.herbs++;
+      msgs.push('市民を守りきった！');
+      msgs.push('市民「ありがとう、勇者さま。これしか持っていませんが……」');
+      msgs.push('やくそうを1つもらった。');
+    } else {
+      G.lostCitizens++;
+      msgs.push('討伐隊「作戦は成功です。報告書には犠牲者0と書いておきます」');
+      msgs.push('勇者は何も言えなかった。');
+    }
+  }
+
+  if (battle.isBoss) {
+    G.bossDead = true;
+    save();
+    showMsgs(msgs, showEnding);
+    return;
+  }
+
+  G.kills[battle.regionIdx]++;
+  G.exp = Math.max(0, G.exp - battle.drain);
+  const paid = Math.min(G.gold, battle.gold);
+  G.gold -= paid;
+  msgs.push(`経験値を ${battle.drain} うしなった！`);
+  if (paid > 0) msgs.push(`復興支援金として ${paid.toLocaleString()}G を支払った。`);
+  const after = stats();
+  if (after.lv < before) {
+    msgs.push(`勇者はレベル ${after.lv} に下がった！　力が抜けていく……`);
+    G.hp = Math.min(G.hp, after.maxHp);
+    G.mp = Math.min(G.mp, after.maxMp);
+  }
+  msgs.push(`残党は あと${remainingEnemies()}体。`);
+  battle = null;
+  renderHud();
+  save();
+  showMsgs(msgs, showMap);
+}
+
+function defeat() {
+  battle = null;
+  const s = stats();
+  G.hp = s.maxHp;
+  G.mp = s.maxMp;
+  renderHud();
+  save();
+  showMsgs([
+    '勇者は力尽きた……',
+    '…………',
+    '目を覚ますと、魔物が傷の手当てをしてくれていた。',
+    '魔物「戦争はもう終わったのに、あんたも物好きだねぇ」',
+    'HPとMPが全回復した。だが残党は1体も減っていない。',
+  ], showMap);
+}
+
+// ===== エンディング =====
+function showEndingGate() {
+  // 全地域クリア済みのセーブを読み込んだ場合の保険
+  setCmds([{ label: '村へ帰る', primary: true, wide: true, fn: showEnding }]);
+}
+
+function showEnding() {
+  hud.style.display = 'none';
+  const s = stats();
+  let citizenLine;
+  if (G.lostCitizens === 0) {
+    citizenLine = `守り抜いた市民：${G.savedCitizens}人。<br>誰一人、犠牲にしなかった。`;
+  } else {
+    citizenLine = `守り抜いた市民：${G.savedCitizens}人。犠牲：${G.lostCitizens}人。<br>勇者はその名前を、生涯忘れない。`;
+  }
+  stage.innerHTML = `
+    <div class="ending-scene">
+      <div style="font-size:72px">🏡</div>
+      <div>
+        世界から、魔物が1体もいなくなった。<br>
+        勇者は飛行艇を降り、歩いて村の門をくぐる。<br><br>
+        「ただいま」<br><br>
+        レベル${s.lv}の、どこにでもいる若者がそこにいた。<br>
+        ${citizenLine}<br>
+        戦いの日々は終わり、ここから彼の人生が始まる。
+      </div>
+      <div class="the-beginning">THE BEGINNING</div>
+    </div>`;
+  clearSave();
+  setCmds([{ label: 'タイトルへ', wide: true, fn: () => { G = null; showTitle(); } }]);
+}
+
+// ===== 起動 =====
+showTitle();
+</script>
+</body>
+</html>
