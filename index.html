@@ -8,9 +8,9 @@
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   body {
-    font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
-    background: #0d0d1a;
-    color: #e8e8f0;
+    font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'MS Gothic', monospace;
+    background: #000;
+    color: #f4f4f8;
     font-size: 16px;
     overscroll-behavior: none;
     user-select: none;
@@ -18,28 +18,36 @@
     touch-action: manipulation;
   }
   #app {
+    position: relative;
     height: 100dvh;
     max-width: 680px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
+    background: #05060d;
+  }
+  /* ===== ドラクエ風ウィンドウ枠 ===== */
+  .win {
+    background: #0a0b1c;
+    border: 3px solid #f4f4f8;
+    border-radius: 6px;
+    box-shadow: 0 0 0 2px #000, inset 0 0 0 1px #000;
   }
   /* ===== HUD ===== */
   #hud {
     display: none;
-    padding: 8px 12px;
-    background: #14142a;
-    border-bottom: 2px solid #3a3a6a;
+    margin: 8px;
+    padding: 7px 11px;
     font-size: 14px;
     line-height: 1.6;
   }
   #hud .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
   #hud .zanto { color: #ff8a8a; font-weight: bold; }
-  .bar { height: 8px; background: #2a2a44; border-radius: 4px; overflow: hidden; flex: 1; min-width: 60px; }
+  .bar { height: 9px; background: #000; border: 1px solid #555; border-radius: 2px; overflow: hidden; flex: 1; min-width: 60px; }
   .bar > div { height: 100%; transition: width 0.3s; }
-  .bar.hp > div { background: #5ad15a; }
-  .bar.hp.low > div { background: #e05a5a; }
-  .bar.mp > div { background: #5a8ae0; }
+  .bar.hp > div { background: #4cd24c; }
+  .bar.hp.low > div { background: #e84c4c; }
+  .bar.mp > div { background: #4c8ae8; }
   .barwrap { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 120px; }
   .barwrap span { font-size: 12px; white-space: nowrap; }
   /* ===== ステージ ===== */
@@ -49,123 +57,212 @@
     -webkit-overflow-scrolling: touch;
     display: flex;
     flex-direction: column;
-    padding: 16px;
+    padding: 12px;
   }
+  /* スプライト共通 */
+  .sprite { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
   /* タイトル */
-  .title-scene { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 24px; text-align: center; }
-  .title-scene h1 { font-size: 40px; letter-spacing: 8px; color: #ffd76a; text-shadow: 0 0 20px rgba(255,215,106,0.4); }
-  .title-scene .sub { color: #9a9ac0; font-size: 15px; }
+  .title-scene { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; text-align: center; }
+  .title-scene h1 { font-size: 44px; letter-spacing: 10px; color: #ffd23b; text-shadow: 3px 3px 0 #000, 0 0 18px rgba(255,210,59,0.4); }
+  .title-scene .sub { color: #b6b6d8; font-size: 15px; letter-spacing: 1px; }
+  .title-scene .spr { margin: 4px 0; }
   /* 戦闘 */
-  .battle-scene { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; }
-  .enemy-icon { font-size: 96px; line-height: 1.2; transition: opacity 0.5s; }
+  .battle-scene { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; }
+  .enemy-icon { line-height: 1; }
   .enemy-icon.shake { animation: shake 0.3s; }
-  .enemy-icon.dead { opacity: 0; }
+  .enemy-icon.dead { opacity: 0; transform: translateY(8px); transition: opacity 0.55s, transform 0.55s; }
+  .spr.flash { animation: ewhite 0.2s; }
+  @keyframes ewhite { 0%,100% { filter: none; } 40% { filter: brightness(3.5) saturate(0.2); } }
   @keyframes shake {
     0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-10px); }
-    75% { transform: translateX(10px); }
+    25% { transform: translateX(-9px); }
+    75% { transform: translateX(9px); }
   }
-  .enemy-name { font-size: 18px; font-weight: bold; }
+  .enemy-name { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
   .enemy-hpbar { width: 70%; max-width: 300px; }
-  .subunits { display: flex; gap: 24px; margin-top: 18px; }
-  .unit { text-align: center; font-size: 13px; color: #c0c0d8; }
-  .unit .u-icon { font-size: 40px; }
+  .subunits { display: flex; gap: 28px; margin-top: 14px; }
+  .unit { text-align: center; font-size: 12px; color: #c8c8e0; }
+  .unit .u-spr { display: flex; justify-content: center; height: 48px; align-items: flex-end; }
   .unit .bar { width: 80px; margin: 4px auto 0; }
-  .unit.out { opacity: 0.35; }
+  .unit.out { opacity: 0.3; }
   .unit .u-state { color: #ff8a8a; }
+  /* ダメージ数字 */
+  .dmgnum {
+    position: absolute; left: 50%; top: 28%;
+    font-weight: bold; font-size: 28px; color: #fff;
+    text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000;
+    pointer-events: none; animation: dn 0.7s ease-out forwards;
+  }
+  .dmgnum.heal { color: #6cf06c; }
+  @keyframes dn {
+    0% { opacity: 0; transform: translate(-50%, 8px) scale(0.6); }
+    25% { opacity: 1; transform: translate(-50%, -6px) scale(1.15); }
+    100% { opacity: 0; transform: translate(-50%, -38px) scale(1); }
+  }
   /* マップ */
-  .map-scene h2 { color: #ffd76a; font-size: 18px; margin-bottom: 4px; }
-  .map-scene .map-sub { color: #9a9ac0; font-size: 13px; margin-bottom: 14px; }
+  .map-scene h2 { color: #ffd23b; font-size: 18px; margin-bottom: 4px; letter-spacing: 1px; }
+  .map-scene .map-sub { color: #b6b6d8; font-size: 13px; margin-bottom: 14px; line-height: 1.6; }
   .region {
-    background: #1a1a30;
-    border: 2px solid #3a3a6a;
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
+    padding: 10px 12px;
+    margin-bottom: 9px;
     display: flex;
     align-items: center;
     gap: 12px;
   }
-  .region.locked { opacity: 0.45; }
-  .region.cleared { border-color: #3a6a3a; }
-  .region .r-icon { font-size: 32px; }
+  .region.locked { opacity: 0.4; }
+  .region.locked .sprite { filter: grayscale(1) brightness(0.6); }
+  .region.cleared { border-color: #4c8a4c; }
+  .region .r-icon { width: 48px; display: flex; justify-content: center; }
   .region .r-info { flex: 1; }
-  .region .r-name { font-weight: bold; }
-  .region .r-state { font-size: 13px; color: #9a9ac0; }
+  .region .r-name { font-weight: bold; letter-spacing: 1px; }
+  .region .r-state { font-size: 13px; color: #b6b6d8; margin-top: 2px; }
   .region .r-state .alert { color: #ff8a8a; }
   .region .r-state .ok { color: #7ad17a; }
-  .map-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
   /* エンディング */
-  .ending-scene { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 18px; text-align: center; line-height: 2; }
-  .ending-scene .the-beginning { font-size: 32px; letter-spacing: 6px; color: #ffd76a; margin-top: 12px; }
+  .ending-scene { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; text-align: center; line-height: 2; }
+  .ending-scene .the-beginning { font-size: 32px; letter-spacing: 6px; color: #ffd23b; margin-top: 10px; text-shadow: 2px 2px 0 #000; }
   /* ===== メッセージ窓 ===== */
   #msgwin {
     display: none;
-    margin: 0 12px;
+    margin: 0 8px;
     padding: 14px 16px;
-    min-height: 84px;
-    background: #14142a;
-    border: 2px solid #6a6aaa;
-    border-radius: 10px;
-    line-height: 1.7;
+    min-height: 92px;
+    line-height: 1.8;
     cursor: pointer;
+    letter-spacing: 0.5px;
   }
-  #msgwin .next { color: #ffd76a; animation: blink 1s infinite; float: right; }
+  #msgwin .next { color: #ffd23b; animation: blink 0.9s steps(1) infinite; float: right; margin-left: 8px; }
   @keyframes blink { 50% { opacity: 0; } }
   /* ===== コマンド ===== */
   #cmds {
-    padding: 12px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    margin: 8px;
+    padding: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
   }
-  #cmds:empty { padding: 0 0 env(safe-area-inset-bottom); }
+  #cmds:empty { display: none; }
+  #cmds.framed { border: 3px solid #f4f4f8; border-radius: 6px; box-shadow: 0 0 0 2px #000; background: #0a0b1c; }
   button {
+    position: relative;
     font-family: inherit;
     font-size: 16px;
-    padding: 14px 12px;
-    border: 2px solid #6a6aaa;
-    border-radius: 10px;
-    background: #22224a;
-    color: #e8e8f0;
+    padding: 13px 12px 13px 26px;
+    border: 2px solid #f4f4f8;
+    border-radius: 5px;
+    background: #0a0b1c;
+    color: #f4f4f8;
     cursor: pointer;
-    min-height: 52px;
+    min-height: 50px;
+    text-align: left;
+    letter-spacing: 0.5px;
   }
-  button:active { background: #33336a; }
-  button:disabled { opacity: 0.4; }
-  button.primary { border-color: #ffd76a; background: #4a3a14; color: #ffd76a; }
+  button::before { content: '▶'; position: absolute; left: 9px; opacity: 0; color: #ffd23b; }
+  button:active { background: #f4f4f8; color: #0a0b1c; }
+  button:active::before { opacity: 1; color: #0a0b1c; }
+  button:disabled { opacity: 0.35; }
+  button:disabled:active { background: #0a0b1c; color: #f4f4f8; }
+  button:disabled:active::before { opacity: 0; }
+  button.primary { border-color: #ffd23b; color: #ffd23b; }
   button.wide { grid-column: 1 / -1; }
+  /* ===== 画面フラッシュ ===== */
+  #flash { position: absolute; inset: 0; background: #ff2b2b; opacity: 0; pointer-events: none; z-index: 50; }
+  #flash.on { animation: fl 0.22s; }
+  @keyframes fl { 0% { opacity: 0; } 30% { opacity: 0.4; } 100% { opacity: 0; } }
 </style>
 </head>
 <body>
 <div id="app">
-  <header id="hud"></header>
+  <header id="hud" class="win"></header>
   <main id="stage"></main>
-  <div id="msgwin"></div>
+  <div id="msgwin" class="win"></div>
   <div id="cmds"></div>
+  <div id="flash"></div>
 </div>
 <script>
 'use strict';
 
+// ===== ドット絵スプライト =====
+const SPRITES = {
+  "slime": { "pal": {"1":"#3461c9","2":"#ffffff","3":"#10183a","4":"#21347a","5":"#5a8af0"},
+    "rows": ["......1111......","....11111111....","...1111111111...","..111111111111..",".11111111111111.",".11221111221111.",".11221111221111.","1111111111111111","1111111111111111","1111113333111111","1115111111115111",".11111111111111.","..444444444444..","...4444444444..."] },
+  "wolf": { "pal": {"F":"#82868f","D":"#3a3c45","Y":"#ffcf3b","W":"#ffffff","N":"#1a1b21","S":"#5a5e68"},
+    "rows": [".F............F.",".FF..........FF.",".FDF........FDF.",".FFFFFFFFFFFFFF.",".FFFFFFFFFFFFFF.","SFFFFFFFFFFFFFFS","SFFYYFFFFFFYYFFS","SFFYYFFFFFFYYFFS",".FFFFFFNNFFFFFF.",".FFFFFNNNNFFFFF.","..FFFFNNNNFFFF..","..FWFFNNNNFFWF..","...FFNNNNNNFF...","....FFNNNNFF...."] },
+  "deathknight": { "pal": {"A":"#4a4e63","D":"#23252f","H":"#9aa0bd","R":"#ff4d4d","S":"#c6cad6"},
+    "rows": ["....HHHHHH......","...HAAAAAAH..S..","...HAAAAAAH..S..","...DRRDDRRD.SS..","...DAAAAAAD.SS..","...HAAAAAAH.SS..","..HHAAAAAAHHS...",".AAAAAAAAAAAS...","AAAAAAAAAAAAS...","AAADAAAAADAAA...","AAADAAAAADAAA...",".AADAAAAADAA....","..ADAAAAADA.....","..AD......DA...."] },
+  "dragon": { "pal": {"G":"#3f9b54","D":"#1f4a2b","B":"#7fd98f","R":"#ff5a3c","Y":"#ffe24a","W":"#ffffff"},
+    "rows": [".RR.............","..RRGG..........","..GGGGGG........",".GGGGGGGGG......",".GGGGGGGGGGG....","GGGYYGGGGGGGGG..","GGGYYGGGGGGGGDRR","GGGGGGGGGGGGGGGR","GGGGGGWWWWWWWW..",".GGGGGGGGGGGGW..",".GGGGGGGGGGGG...","..BBGGGGGG......","...BBGGG........","....GGG........."] },
+  "durahan": { "pal": {"A":"#3a3e57","D":"#16182a","H":"#6a7099","G":"#7affd0","S":"#c6cad6"},
+    "rows": ["...H......H.....","..HAH....HAH....",".HAAAH..HAAAH...",".HAAAAGGAAAAH...",".HAAAGGGGAAAH...","HAAAAGGGGAAAAH..","AAAAAGGGGAAAAA..","AAAADAAAADAAAA..","AAAADAAAADAAAA..",".AAADAAAADAAA...",".AAADAAAADAAA...","..AADAAAADAA....","..AD......DA....","..D........D...."] },
+  "demonking": { "pal": {"P":"#5b2a6b","D":"#2a1230","R":"#ff3b3b","H":"#8a3aa0","K":"#15101a"},
+    "rows": ["K..............K","KK............KK",".KK..........KK.","..PPPPPPPPPPPP..",".PPPPPPPPPPPPPP.",".PPRRPPPPPPRRPP.",".PPRRPPPPPPRRPP.","PPPPPPPPPPPPPPPP","PPPPPDDDDDDPPPPP","PPPPPPPPPPPPPPPP",".HPPPPPPPPPPPPH.","HHPPPPPPPPPPPPHH","H.PPPPPPPPPPPP.H","..PPPP....PPPP.."] },
+  "hero": { "pal": {"S":"#e8b88a","H":"#7a4a2a","B":"#3a6ad1","L":"#2a4a9a","M":"#caccd4","K":"#1a1c28"},
+    "rows": ["...HHHHHH...","..HHHHHHHH..","..HSSSSSSH..","..SSKSSKSS..","..SSSSSSSS..","...SSSSSS...","..BBBBBBBB..",".BBBBBBBBBM.","SBBLBBBBLBM.",".BBLLLLLLBB.","..LL....LL..","..KK....KK.."] },
+  "citizen": { "pal": {"S":"#e8b88a","C":"#6a8a4a","H":"#4a3a2a","K":"#1a1c28"},
+    "rows": ["...HHHHHH...","..HHHHHHHH..","..HSSSSSSH..","..SKSSSSKS..","..SSSSSSSS..","...SSSSSS...","...CCCCCC...","..CCCCCCCC..",".SCCCCCCCCS.","..CCCCCCCC..","..CC....CC..","..KK....KK.."] },
+  "soldier": { "pal": {"A":"#6a7088","H":"#9aa0bd","D":"#2a2c38","M":"#c6cad6"},
+    "rows": ["...HHHHHH...","..HAAAAAAH..","..ADDDDDDA..","..AAAAAAAA..","..HAAAAAAH..",".AAAAAAAAAM.","AAAAAAAAAAM.","AAADAAAADAM.",".AADAAAADA..","..ADAAAADA..","..AD....DA..","..DD....DD.."] }
+};
+const _sprCache = {};
+function makeSprite(key, px) {
+  const ck = key + '@' + px;
+  if (_sprCache[ck]) return _sprCache[ck];
+  const sp = SPRITES[key];
+  if (!sp) return '';
+  const rows = sp.rows, pal = sp.pal;
+  const w = Math.max.apply(null, rows.map((r) => r.length)), h = rows.length;
+  let rects = '';
+  for (let y = 0; y < h; y++) {
+    const row = rows[y];
+    for (let x = 0; x < row.length; x++) {
+      const col = pal[row[x]];
+      if (!col) continue;
+      rects += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${col}"/>`;
+    }
+  }
+  const svg = `<svg class="sprite" viewBox="0 0 ${w} ${h}" width="${w * px}" height="${h * px}" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
+  _sprCache[ck] = svg;
+  return svg;
+}
+
 // ===== 定数 =====
 const SAVE_KEY = 'gyaku-rpg-save';
 const HERB_HEAL_RATE = 0.4;     // やくそうは最大HPの40%回復
-const SKILL_MP_COST = 8;
 const HERB_BASE_PRICE = 300;    // 戦後インフレで買うたび2倍になる
+
+// じゅもん・とくぎ（独自名。レベルが下がると強い技から使えなくなる）
+const SPELLS = [
+  { id: 'yusha',   name: 'ゆうしゃぎり', mp: 8,  minLv: 50, kind: 'phys', mult: 2,
+    flavor: '勇者のゆうしゃぎり！　刃に英雄の光が宿る！' },
+  { id: 'raiga',   name: 'ライガ',       mp: 10, minLv: 40, kind: 'magic', power: 2.4,
+    flavor: '勇者はライガをとなえた！　いかずちが落ちる！' },
+  { id: 'frei',    name: 'フレイ',       mp: 4,  minLv: 1,  kind: 'magic', power: 1.4,
+    flavor: '勇者はフレイをとなえた！　ほのおが噴き出す！' },
+  { id: 'recover', name: 'リカバ',       mp: 6,  minLv: 1,  kind: 'heal',  power: 0.45,
+    flavor: '勇者はリカバをとなえた！' },
+];
+
+const LEVELDOWN_FLAVOR = [
+  'アドレナリンが引いていく。体の節々が、戦った分だけ痛みを思い出す。',
+  'やくそうでは戻らない。すり減った筋繊維が、確かに勇者を弱くする。',
+  '張り詰めていた糸が、また一本切れた。',
+  '魔王を断つために燃やした英雄の力が、静かに抜けていく。',
+  '勇者は、ほんの少し「ただの人間」に近づいた。',
+];
 
 const REGIONS = [
   { name: '魔王城',         icon: '🏰', desc: 'すべてが終わった場所',
-    enemy: { name: '魔王親衛隊デュラハン', icon: '💀', hp: 700, atk: 240, def: 140, drain: 600, gold: 3000 }, count: 3 },
+    enemy: { name: '魔王親衛隊デュラハン', sprite: 'durahan',     hp: 700, atk: 240, def: 140, drain: 600, gold: 3000 }, count: 3 },
   { name: '竜の山脈',       icon: '🌋', desc: '古竜たちの住処',
-    enemy: { name: 'エンシェントドラゴン', icon: '🐉', hp: 550, atk: 180, def: 110, drain: 550, gold: 2500 }, count: 4 },
+    enemy: { name: 'エンシェントドラゴン', sprite: 'dragon',      hp: 550, atk: 180, def: 110, drain: 550, gold: 2500 }, count: 4 },
   { name: '黒鉄の砦',       icon: '⚔️', desc: '魔王軍の前線基地跡',
-    enemy: { name: 'デスナイト',           icon: '🛡️', hp: 380, atk: 120, def: 75,  drain: 480, gold: 2000 }, count: 5 },
+    enemy: { name: 'デスナイト',           sprite: 'deathknight', hp: 380, atk: 120, def: 75,  drain: 480, gold: 2000 }, count: 5 },
   { name: 'ねじれの森',     icon: '🌲', desc: '村への帰り道',
-    enemy: { name: 'キラーウルフ',         icon: '🐺', hp: 200, atk: 65,  def: 35,  drain: 350, gold: 1200 }, count: 6 },
+    enemy: { name: 'キラーウルフ',         sprite: 'wolf',        hp: 200, atk: 65,  def: 35,  drain: 350, gold: 1200 }, count: 6 },
   { name: 'はじまりの平原', icon: '🌾', desc: '故郷の村のすぐそば',
-    enemy: { name: 'スライム',             icon: '💧', hp: 70,  atk: 22,  def: 8,   drain: 200, gold: 500 },  count: 4,
-    boss:  { name: 'さいごのスライム',     icon: '💧', hp: 110, atk: 26,  def: 12,  drain: 0,   gold: 0 } },
+    enemy: { name: 'スライム',             sprite: 'slime',       hp: 70,  atk: 22,  def: 8,   drain: 200, gold: 500 },  count: 4,
+    boss:  { name: 'さいごのスライム',     sprite: 'slime',       hp: 110, atk: 26,  def: 12,  drain: 0,   gold: 0 } },
 ];
 
 // ===== 状態 =====
@@ -194,7 +291,16 @@ function newGame() {
 const lvOf = (exp) => Math.min(99, Math.max(1, Math.floor(exp / 100) + 1));
 const stats = () => {
   const lv = lvOf(G.exp);
-  return { lv, maxHp: 40 + lv * 10, maxMp: 10 + lv * 2, atk: 8 + lv * 3, def: 4 + lv * 2 };
+  // 素のちから（人間としての地力）＋ 英雄の武具ぶん（英雄性＝レベルに比例して輝く）
+  const baseAtk = 8 + lv, eqAtk = lv * 2;
+  const baseDef = 4 + lv, eqDef = lv;
+  return {
+    lv,
+    maxHp: 40 + lv * 10, maxMp: 10 + lv * 2,
+    atk: baseAtk + eqAtk, def: baseDef + eqDef,
+    matk: 6 + lv * 2,
+    baseAtk, eqAtk, baseDef, eqDef,
+  };
 };
 const remainingEnemies = () =>
   REGIONS.reduce((n, r, i) => n + (r.count - G.kills[i]) + (r.boss && !G.bossDead ? 1 : 0), 0);
@@ -233,8 +339,9 @@ function renderHud() {
     </div>`;
 }
 
-function setCmds(list) {
+function setCmds(list, framed) {
   cmds.innerHTML = '';
+  cmds.classList.toggle('framed', !!framed);
   for (const c of list) {
     const b = document.createElement('button');
     b.textContent = c.label;
@@ -246,7 +353,24 @@ function setCmds(list) {
   }
 }
 
-// ===== メッセージ窓（タップ送り）=====
+// ===== メッセージ窓（タップ送り＋タイプライタ演出）=====
+let typing = false, typeTimer = null, curTokens = null, curShown = 0;
+
+function tokenize(str) {
+  const out = [];
+  const re = /(<[^>]+>)/g;
+  let last = 0, m;
+  while ((m = re.exec(str))) {
+    for (const ch of str.slice(last, m.index)) out.push(ch);
+    out.push(m[0]);
+    last = re.lastIndex;
+  }
+  for (const ch of str.slice(last)) out.push(ch);
+  return out;
+}
+function renderTyping() {
+  msgwin.innerHTML = curTokens.slice(0, curShown).join('') + (typing ? '' : '<span class="next">▼</span>');
+}
 function showMsgs(msgs, done) {
   msgQueue = msgs.slice();
   msgDone = done;
@@ -261,9 +385,21 @@ function nextMsg() {
     if (fn) fn();
     return;
   }
-  msgwin.innerHTML = msgQueue.shift() + '<span class="next">▼</span>';
+  curTokens = tokenize(msgQueue.shift());
+  curShown = 0;
+  typing = true;
+  renderTyping();
+  clearInterval(typeTimer);
+  typeTimer = setInterval(() => {
+    curShown++;
+    if (curShown >= curTokens.length) { curShown = curTokens.length; typing = false; clearInterval(typeTimer); }
+    renderTyping();
+  }, 22);
 }
-msgwin.addEventListener('click', () => { if (msgDone) nextMsg(); });
+msgwin.addEventListener('click', () => {
+  if (typing) { curShown = curTokens.length; typing = false; clearInterval(typeTimer); renderTyping(); return; }
+  if (msgDone || msgQueue.length) nextMsg();
+});
 
 // ===== タイトル =====
 function showTitle() {
@@ -275,12 +411,13 @@ function showTitle() {
         <h1>逆勇者</h1>
         <div class="sub">〜魔王を倒してからが本番〜</div>
       </div>
+      <div class="spr">${makeSprite('hero', 7)}</div>
       <div class="sub">敵は有限。すべて殲滅したら、物語は終わる。</div>
     </div>`;
   const saved = load();
   const list = [{ label: 'はじめから', primary: true, wide: !saved, fn: () => { clearSave(); G = newGame(); showOpening(); } }];
   if (saved) list.push({ label: 'つづきから', fn: () => { G = Object.assign(newGame(), saved); renderHud(); showMap(); } });
-  setCmds(list);
+  setCmds(list, true);
 }
 
 // ===== オープニング（魔王戦）=====
@@ -289,7 +426,7 @@ function showOpening() {
   G.hp = s.maxHp; G.mp = s.maxMp;
   stage.innerHTML = `
     <div class="battle-scene">
-      <div class="enemy-icon" id="e-icon">😈</div>
+      <div class="enemy-icon"><div class="spr">${makeSprite('demonking', 11)}</div></div>
       <div class="enemy-name">魔王</div>
     </div>`;
   showMsgs([
@@ -298,18 +435,24 @@ function showOpening() {
     '魔王「我を倒しても、世界に平和など——」',
   ], () => {
     setCmds([{ label: '⚔️ ゆうしゃぎり', primary: true, wide: true, fn: () => {
-      $('e-icon').classList.add('shake');
-      setTimeout(() => $('e-icon').classList.add('dead'), 400);
+      const sc = document.querySelector('.battle-scene .enemy-icon');
+      sc.classList.add('shake');
+      setTimeout(() => sc.classList.add('dead'), 400);
       showMsgs([
         '勇者のゆうしゃぎり！　99999のダメージ！',
         '魔王「はや……」',
         '魔王をたおした！',
         'こうして、世界を救う物語は<b>オープニングで終わった</b>。',
-        'だが斥候の報告によると、世界にはまだ魔物の残党が <b>23体</b> 残っているという。',
-        '勇者は最初から持っていた飛行艇に乗り込み、地上へ戻る。',
-        '残党をすべて殲滅し、故郷の村へ帰るのだ。',
+        'だが、魔王が倒れても魔物がすべて消えるわけではない。世界にはまだ残党が <b>23体</b> 残っていた。',
+        '行きは魔王だけを狙い、勇者は残党に目もくれず一直線に駆け抜けてきた。',
+        'その残党がいま、勇者の背後——故郷へと続く道に集まり、人里を盾に防衛線を張っている。',
+        '勇者は最初から持っていた飛行艇に乗り込む。手前の線から順に突破し、すべてを殲滅して故郷へ帰るのだ。',
         '人類側の「残党討伐隊」もすでに動き出している。だが彼らのやり方は——荒っぽいと評判だ。',
-        'ただし——魔王を倒した今、戦うたびに<b>経験値は失われ、レベルは下がっていく</b>。',
+        'そして、勇者はひとつ気づいていた。',
+        '魔王を前に極限まで研ぎ澄まされていた<b>「英雄の力」</b>が、戦うたびに少しずつ抜けていくのだ。',
+        'アドレナリンが引き、張り詰めていたものがほどけ、体は戦った分だけ重くなる。',
+        'やくそうは傷をふさぐ。だが、すり減った筋繊維も、失われた英雄性も、戻してはくれない。',
+        '<b>戦うほどに経験値は失われ、勇者のレベルは下がっていく。</b>',
         '物語はここから、終わりに向かって始まる。',
       ], () => { G.opened = true; renderHud(); save(); showMap(); });
     }}]);
@@ -322,7 +465,7 @@ function showMap() {
   save();
   let html = `<div class="map-scene">
     <h2>🛩 飛行艇 — 行き先を選べ</h2>
-    <div class="map-sub">魔王城から故郷へ。世界を逆走する。</div>`;
+    <div class="map-sub">魔王城から故郷へ。残党は人里へと退きながら、各地に防衛線を張っている。<br>手前の線から順に突破せよ。</div>`;
   let current = -1;
   REGIONS.forEach((r, i) => {
     const unlocked = regionUnlocked(i);
@@ -330,14 +473,14 @@ function showMap() {
     if (unlocked && !cleared && current < 0) current = i;
     const left = (r.count - G.kills[i]) + (r.boss && !G.bossDead ? 1 : 0);
     let state;
-    if (!unlocked) state = '🔒 まだ瘴気が濃くて近づけない';
+    if (!unlocked) state = `🔒 手前の${REGIONS[i - 1].name}を抜くまで防衛線が崩せない`;
     else if (cleared) state = '<span class="ok">✓ 殲滅完了</span>';
     else state = `<span class="alert">${r.enemy.name} 残り${left}体</span>`;
     html += `
-      <div class="region ${unlocked ? '' : 'locked'} ${cleared ? 'cleared' : ''}">
-        <div class="r-icon">${r.icon}</div>
+      <div class="region win ${unlocked ? '' : 'locked'} ${cleared ? 'cleared' : ''}">
+        <div class="r-icon">${makeSprite(r.enemy.sprite, 3)}</div>
         <div class="r-info">
-          <div class="r-name">${r.name}</div>
+          <div class="r-name">${r.icon} ${r.name}</div>
           <div class="r-state">${r.desc} — ${state}</div>
         </div>
       </div>`;
@@ -354,7 +497,20 @@ function showMap() {
     { label: `⚔️ ${r.name}で${target.name}と戦う`, primary: true, wide: true, fn: () => startBattle(current, isBoss) },
     { label: `🌿 やくそうを使う (×${G.herbs})`, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: useHerbOnMap },
     { label: `💰 行商人 (${herbPrice().toLocaleString()}G)`, fn: visitMerchant },
-  ]);
+    { label: '🛡 そうび', wide: true, fn: showEquip },
+  ], true);
+}
+
+function showEquip() {
+  const s = stats();
+  showMsgs([
+    `<b>そうび</b>`,
+    `英雄の剣　　こうげき +${s.eqAtk}`,
+    `英雄のよろい　しゅび +${s.eqDef}`,
+    `素のちから　　こうげき ${s.baseAtk}／しゅび ${s.baseDef}`,
+    'かつて魔王を断った伝説の武具。',
+    'だが——英雄の力が抜けるほど、その輝きも鈍っていく。レベルが下がれば、やがてただの鉄に近づく。',
+  ], showMap);
 }
 
 function useHerbOnMap() {
@@ -381,18 +537,22 @@ function visitMerchant() {
           showMsgs(['やくそうを手に入れた。', '行商人「毎度あり！　次はこの倍だよ」'], showMap);
         } },
       { label: 'やめる', fn: showMap },
-    ]);
+    ], true);
   });
 }
 
 // ===== 戦闘 =====
 const dmg = (atk, def) => Math.max(1, Math.round((atk - def / 2) * (0.85 + Math.random() * 0.3)));
+const magicDmg = (power) => {
+  const s = stats();
+  return Math.max(1, Math.round(power * s.matk * (0.85 + Math.random() * 0.3)));
+};
 
 function startBattle(regionIdx, isBoss) {
   const r = REGIONS[regionIdx];
   const def = isBoss ? r.boss : r.enemy;
   const hostage = !isBoss;  // 残党は市民を人質に取っている。ただし最後の一体だけは一対一
-  battle = { regionIdx, isBoss, hostage, name: def.name, icon: def.icon,
+  battle = { regionIdx, isBoss, hostage, name: def.name, sprite: def.sprite,
              hp: def.hp, maxHp: def.hp, atk: def.atk, def: def.def,
              drain: def.drain, gold: def.gold, guarding: false };
   let sub = '';
@@ -402,15 +562,16 @@ function startBattle(regionIdx, isBoss) {
                     def: Math.round(def.def * 0.5), down: false };
     sub = `
       <div class="subunits">
-        <div class="unit" id="u-citizen"><div class="u-icon">🧑‍🌾</div>市民（人質）
+        <div class="unit" id="u-citizen"><div class="u-spr">${makeSprite('citizen', 4)}</div>市民（人質）
           <div class="bar hp"><div id="c-hp" style="width:100%"></div></div></div>
-        <div class="unit" id="u-ally"><div class="u-icon">💂</div>討伐隊の兵士
+        <div class="unit" id="u-ally"><div class="u-spr">${makeSprite('soldier', 4)}</div>討伐隊の兵士
           <div class="u-state" id="a-state">突撃中！</div></div>
       </div>`;
   }
+  const px = isBoss ? 13 : 9;
   stage.innerHTML = `
     <div class="battle-scene">
-      <div class="enemy-icon" id="e-icon" ${isBoss ? 'style="font-size:140px"' : ''}>${battle.icon}</div>
+      <div class="enemy-icon" id="e-icon"><div class="spr" id="e-spr">${makeSprite(battle.sprite, px)}</div></div>
       <div class="enemy-name">${battle.name}</div>
       <div class="bar hp enemy-hpbar"><div id="e-hp" style="width:100%"></div></div>
       ${sub}
@@ -437,66 +598,121 @@ function startBattle(regionIdx, isBoss) {
 }
 
 function battleMenu() {
-  const s = stats();
   renderHud();
   const list = [
-    { label: '⚔️ たたかう', primary: true, fn: () => playerAct('attack') },
-    { label: `✨ ゆうしゃぎり (MP${SKILL_MP_COST})`, disabled: G.mp < SKILL_MP_COST, fn: () => playerAct('skill') },
-    { label: `🌿 やくそう (×${G.herbs})`, disabled: G.herbs <= 0, fn: () => playerAct('herb') },
-    { label: '🏃 にげる', fn: () => playerAct('flee') },
+    { label: '⚔️ たたかう', primary: true, fn: playerAttack },
+    { label: '✨ じゅもん', fn: spellMenu },
+    { label: '🎒 どうぐ', fn: itemMenu },
+    { label: '🏃 にげる', fn: fleeBattle },
   ];
   if (battle.hostage && !battle.ally.down) {
-    list.splice(2, 0,
-      { label: '🛡 かばう（市民）', disabled: battle.citizen.dead, fn: () => playerAct('guard') },
-      { label: '⚡ みねうち（兵士）', fn: () => playerAct('mineuchi') });
+    list.push(
+      { label: '🛡 かばう（市民）', disabled: battle.citizen.dead, fn: guardCitizen },
+      { label: '⚡ みねうち（兵士）', fn: mineuchi });
   }
-  setCmds(list);
+  setCmds(list, true);
 }
 
-function playerAct(kind) {
+function spellMenu() {
   const s = stats();
-  const msgs = [];
+  const list = SPELLS.map((sp) => {
+    const tooWeak = s.lv < sp.minLv;
+    const noMp = G.mp < sp.mp;
+    let label = `${sp.name}（MP${sp.mp}）`;
+    if (tooWeak) label = `${sp.name}（力不足）`;
+    return { label, disabled: tooWeak || noMp, fn: () => castSpell(sp) };
+  });
+  list.push({ label: '← もどる', wide: true, fn: battleMenu });
+  setCmds(list, true);
+}
+
+function itemMenu() {
+  const s = stats();
+  setCmds([
+    { label: `🌿 やくそう (×${G.herbs})`, primary: true, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: useHerbBattle },
+    { label: '← もどる', fn: battleMenu },
+  ], true);
+}
+
+function playerAttack() {
   battle.guarding = false;
-  if (kind === 'attack' || kind === 'skill') {
-    let d = dmg(s.atk, battle.def);
-    if (kind === 'skill') { d *= 2; G.mp -= SKILL_MP_COST; }
-    battle.hp = Math.max(0, battle.hp - d);
-    msgs.push(kind === 'skill'
-      ? `勇者のゆうしゃぎり！　${battle.name}に ${d} のダメージ！`
-      : `勇者のこうげき！　${battle.name}に ${d} のダメージ！`);
-    hitEnemy();
-  } else if (kind === 'herb') {
-    G.herbs--;
-    const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * HERB_HEAL_RATE));
+  const s = stats();
+  const d = dmg(s.atk, battle.def);
+  battle.hp = Math.max(0, battle.hp - d);
+  hitEnemy(d);
+  afterPlayerAction([`勇者のこうげき！　${battle.name}に ${d} のダメージ！`]);
+}
+
+function castSpell(sp) {
+  battle.guarding = false;
+  const s = stats();
+  G.mp -= sp.mp;
+  const msgs = [sp.flavor];
+  if (sp.kind === 'heal') {
+    const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * sp.power));
     G.hp += heal;
-    msgs.push(`やくそうを使った。HPが ${heal} 回復した。`);
-  } else if (kind === 'guard') {
-    battle.guarding = true;
-    msgs.push('勇者は市民の前に立ちはだかった！');
-  } else if (kind === 'mineuchi') {
-    const d = dmg(s.atk, battle.ally.def);
-    battle.ally.hp = Math.max(0, battle.ally.hp - d);
-    msgs.push(`勇者のみねうち！　兵士に ${d} のダメージ！`);
-    if (battle.ally.hp <= 0) {
-      battle.ally.down = true;
-      $('u-ally').classList.add('out');
-      $('a-state').textContent = '気絶';
-      msgs.push('兵士はのびてしまった！');
-      msgs.push('兵士「な、なぜ味方の私を……」');
-    }
-  } else if (kind === 'flee') {
-    const fleeMsgs = ['勇者は逃げ出した！', 'もう誰も追ってこない。魔王は死んだのだから。', 'しかし、残党は1体も減っていない……'];
-    if (battle.hostage) fleeMsgs.push('人質を置いてきてしまった……');
-    showMsgs(fleeMsgs, () => { battle = null; showMap(); });
+    spawnDamage(heal, true);
+    msgs.push(`HPが ${heal} 回復した。`);
+    renderHud();
+    afterPlayerAction(msgs);
     return;
   }
-  renderHud();
+  const d = sp.kind === 'phys' ? dmg(s.atk, battle.def) * sp.mult : magicDmg(sp.power);
+  battle.hp = Math.max(0, battle.hp - d);
+  hitEnemy(d);
+  msgs.push(`${battle.name}に ${d} のダメージ！`);
+  afterPlayerAction(msgs);
+}
 
+function useHerbBattle() {
+  battle.guarding = false;
+  const s = stats();
+  G.herbs--;
+  const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * HERB_HEAL_RATE));
+  G.hp += heal;
+  spawnDamage(heal, true);
+  renderHud();
+  afterPlayerAction([`やくそうを使った。HPが ${heal} 回復した。`]);
+}
+
+function guardCitizen() {
+  battle.guarding = true;
+  afterPlayerAction(['勇者は市民の前に立ちはだかった！']);
+}
+
+function mineuchi() {
+  battle.guarding = false;
+  const s = stats();
+  const msgs = [];
+  const d = dmg(s.atk, battle.ally.def);
+  battle.ally.hp = Math.max(0, battle.ally.hp - d);
+  msgs.push(`勇者のみねうち！　兵士に ${d} のダメージ！`);
+  if (battle.ally.hp <= 0) {
+    battle.ally.down = true;
+    $('u-ally').classList.add('out');
+    $('a-state').textContent = '気絶';
+    msgs.push('兵士はのびてしまった！');
+    msgs.push('兵士「な、なぜ味方の私を……」');
+  }
+  afterPlayerAction(msgs);
+}
+
+function fleeBattle() {
+  const fleeMsgs = ['勇者は逃げ出した！', 'もう誰も追ってこない。魔王は死んだのだから。', 'しかし、残党は1体も減っていない……'];
+  if (battle.hostage) fleeMsgs.push('人質を置いてきてしまった……');
+  showMsgs(fleeMsgs, () => { battle = null; showMap(); });
+}
+
+// プレイヤー行動のあと、敵・討伐隊のターンを処理する
+function afterPlayerAction(msgs) {
+  renderHud();
   if (battle.hp <= 0) { showMsgs(msgs, victory); return; }
 
   // 敵の反撃
+  const s = stats();
   const ed = dmg(battle.atk, s.def);
   G.hp = Math.max(0, G.hp - ed);
+  flashScreen();
   msgs.push(`${battle.name}のこうげき！　勇者は ${ed} のダメージを受けた！`);
   renderHud();
   if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
@@ -506,12 +722,13 @@ function playerAct(kind) {
     const ad = Math.max(1, Math.round(battle.maxHp * 0.07 * (0.85 + Math.random() * 0.3)));
     battle.hp = Math.max(0, battle.hp - ad);
     msgs.push(`兵士の無謀な突撃！　${battle.name}に ${ad} のダメージ！`);
-    hitEnemy();
+    hitEnemy(ad);
     if (battle.hp <= 0) { showMsgs(msgs, victory); return; }
     if (!battle.citizen.dead) {
       const sd = 15 + Math.floor(Math.random() * 11);
       if (battle.guarding) {
         G.hp = Math.max(0, G.hp - sd);
+        flashScreen();
         msgs.push(`巻き込みの一撃を勇者が受け止めた！　${sd} のダメージ！`);
         renderHud();
         if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
@@ -531,12 +748,27 @@ function playerAct(kind) {
   showMsgs(msgs, battleMenu);
 }
 
-function hitEnemy() {
-  const icon = $('e-icon');
-  icon.classList.remove('shake');
-  void icon.offsetWidth;  // アニメーション再発火のためのリフロー
-  icon.classList.add('shake');
+function hitEnemy(d) {
+  const icon = $('e-icon'), spr = $('e-spr');
+  icon.classList.remove('shake'); void icon.offsetWidth; icon.classList.add('shake');
+  spr.classList.remove('flash'); void spr.offsetWidth; spr.classList.add('flash');
+  if (typeof d === 'number') spawnDamage(d);
   $('e-hp').style.width = Math.round(battle.hp / battle.maxHp * 100) + '%';
+}
+
+function spawnDamage(d, heal) {
+  const sc = document.querySelector('.battle-scene');
+  if (!sc) return;
+  const el = document.createElement('div');
+  el.className = 'dmgnum' + (heal ? ' heal' : '');
+  el.textContent = (heal ? '+' : '') + d;
+  sc.appendChild(el);
+  setTimeout(() => el.remove(), 700);
+}
+
+function flashScreen() {
+  const f = $('flash');
+  f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
 }
 
 function victory() {
@@ -573,7 +805,14 @@ function victory() {
   if (paid > 0) msgs.push(`復興支援金として ${paid.toLocaleString()}G を支払った。`);
   const after = stats();
   if (after.lv < before) {
-    msgs.push(`勇者はレベル ${after.lv} に下がった！　力が抜けていく……`);
+    msgs.push(`勇者のレベルが ${after.lv} に下がった……`);
+    msgs.push(LEVELDOWN_FLAVOR[Math.floor(Math.random() * LEVELDOWN_FLAVOR.length)]);
+    // 弱体化で使えなくなったじゅもん・とくぎを知らせる
+    for (const sp of SPELLS) {
+      if (before >= sp.minLv && after.lv < sp.minLv) {
+        msgs.push(`——もう「${sp.name}」を使う力は残っていない。`);
+      }
+    }
     G.hp = Math.min(G.hp, after.maxHp);
     G.mp = Math.min(G.mp, after.maxMp);
   }
@@ -603,7 +842,7 @@ function defeat() {
 // ===== エンディング =====
 function showEndingGate() {
   // 全地域クリア済みのセーブを読み込んだ場合の保険
-  setCmds([{ label: '村へ帰る', primary: true, wide: true, fn: showEnding }]);
+  setCmds([{ label: '村へ帰る', primary: true, wide: true, fn: showEnding }], true);
 }
 
 function showEnding() {
@@ -617,7 +856,7 @@ function showEnding() {
   }
   stage.innerHTML = `
     <div class="ending-scene">
-      <div style="font-size:72px">🏡</div>
+      <div>${makeSprite('hero', 7)}</div>
       <div>
         世界から、魔物が1体もいなくなった。<br>
         勇者は飛行艇を降り、歩いて村の門をくぐる。<br><br>
@@ -629,7 +868,7 @@ function showEnding() {
       <div class="the-beginning">THE BEGINNING</div>
     </div>`;
   clearSave();
-  setCmds([{ label: 'タイトルへ', wide: true, fn: () => { G = null; showTitle(); } }]);
+  setCmds([{ label: 'タイトルへ', wide: true, fn: () => { G = null; showTitle(); } }], true);
 }
 
 // ===== 起動 =====
