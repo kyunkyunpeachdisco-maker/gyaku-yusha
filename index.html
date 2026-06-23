@@ -75,6 +75,22 @@
   #flash { position: absolute; inset: 0; background: #ff2b2b; opacity: 0; pointer-events: none; z-index: 50; }
   #flash.on { animation: fl 0.22s; }
   @keyframes fl { 0%{opacity:0;} 30%{opacity:0.4;} 100%{opacity:0;} }
+  /* ===== マップ ===== */
+  .mapwrap { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+  .maptitle { color:#ffd23b; font-size:16px; letter-spacing:2px; }
+  .maphint { color:#b6b6d8; font-size:12px; text-align:center; line-height:1.6; }
+  .mapgrid { display:grid; border:3px solid #f4f4f8; box-shadow:0 0 0 2px #000; line-height:0; }
+  .cell { width:30px; height:30px; position:relative; }
+  .cell .bg { position:absolute; inset:0; }
+  .cell .bg svg { width:30px; height:30px; display:block; }
+  .cell .ov { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:17px; z-index:1; }
+  .cell .ov svg { width:24px; height:24px; }
+  .cell.loc::after { content:''; position:absolute; inset:0; box-shadow:inset 0 0 0 2px #ffd23b; pointer-events:none; z-index:3; }
+  .cell.cur::after { box-shadow:inset 0 0 0 2px #6cf06c; }
+  .cell.lock { filter:brightness(0.4); }
+  .cell .lbl { position:absolute; bottom:0; left:0; right:0; text-align:center; font-size:8px; color:#fff; text-shadow:0 0 2px #000,1px 1px 0 #000; pointer-events:none; z-index:4; }
+  .cell.tap::before { content:''; position:absolute; inset:0; box-shadow:inset 0 0 0 2px rgba(255,255,255,0.55); pointer-events:none; z-index:2; }
+  .cell.tap:active { filter:brightness(1.4); }
 </style>
 </head>
 <body>
@@ -119,8 +135,27 @@ const SPRITES = {
   "citizen": { "pal": {"S":"#e8b88a","C":"#6a8a4a","H":"#4a3a2a","K":"#1a1c28"},
     "rows": ["...HHHHHH...","..HHHHHHHH..","..HSSSSSSH..","..SKSSSSKS..","..SSSSSSSS..","...SSSSSS...","...CCCCCC...","..CCCCCCCC..",".SCCCCCCCCS.","..CCCCCCCC..","..CC....CC..","..KK....KK.."] },
   "soldier": { "pal": {"A":"#6a7088","H":"#9aa0bd","D":"#2a2c38","M":"#c6cad6"},
-    "rows": ["...HHHHHH...","..HAAAAAAH..","..ADDDDDDA..","..AAAAAAAA..","..HAAAAAAH..",".AAAAAAAAAM.","AAAAAAAAAAM.","AAADAAAADAM.",".AADAAAADA..","..ADAAAADA..","..AD....DA..","..DD....DD.."] }
+    "rows": ["...HHHHHH...","..HAAAAAAH..","..ADDDDDDA..","..AAAAAAAA..","..HAAAAAAH..",".AAAAAAAAAM.","AAAAAAAAAAM.","AAADAAAADAM.",".AADAAAADA..","..ADAAAADA..","..AD....DA..","..DD....DD.."] },
+  "t_grass": { "pal": {"1":"#2f6d34","2":"#27592b","3":"#43904a"},
+    "rows": ["1111111111111111","1131111121111111","1111111111111311","1112111111111111","1111111131111121","1111111111111111","1311111111121111","1111121111111111","1111111111113111","1121111111111111","1111113111111121","1111111111111111","1311111121111111","1111111111111311","1112111111111111","1111111111121111"] },
+  "t_grass2": { "pal": {"1":"#2f6d34","2":"#27592b","3":"#43904a"},
+    "rows": ["1111121111111311","1111111111111111","1131111111121111","1111111121111111","1211111111111131","1111111111111111","1111131111111121","1121111111111111","1111111121113111","1111111111111111","1311111111121111","1111121111111111","1111111111111311","1131111111111111","1111111121111121","1111111111111111"] },
+  "t_water": { "pal": {"1":"#1b4f9c","3":"#4f8ad8"},
+    "rows": ["1111111111111111","1331111133111111","1111111111111111","1111113311111331","1111111111111111","3311111133111111","1111111111111111","1111133111111133","1111111111111111","1331111111331111","1111111111111111","1111113311111133","1111111111111111","3311111111331111","1111111111111111","1111133111111111"] },
+  "t_mtn": { "pal": {"1":"#4a4036","2":"#332c24","3":"#6a5c4c"},
+    "rows": ["3333333333333333","1111111111111111","1112111111121111","1122111111112211","1111111111111111","3333333333333333","1111111111111111","1121111111112111","1111122111111111","1111111111111111","3333333333333333","1111111111111111","1112111111121111","1111111122111111","1111111111111111","2222222222222222"] },
+  "f_castle": { "pal": {"1":"#3b3b49","2":"#23232e","3":"#52525f"},
+    "rows": ["2222222222222222","1111111211111113","1111111211111112","2222222222222222","1321111111111211","1121111111111211","2222222222222222","1111111211111112","1111111213111112","2222222222222222","1121111111111211","1121111111111211","2222222222222222","1111111211111112","1311111211111112","2222222222222222"] },
+  "f_mtn": { "pal": {"1":"#5a4a38","2":"#3e3226","3":"#7a6450"},
+    "rows": ["1111111111111111","1121111111121111","1111113111111111","1111111111121111","1131111111111121","1111111111111111","1111121111113111","1121111111111111","1111111121111111","1111111111131111","1311111111111121","1111121111111111","1111111111121111","1121111131111111","1111111111111111","1111111111111111"] },
+  "f_fort": { "pal": {"1":"#34383f","2":"#1f2228","3":"#4a4f59"},
+    "rows": ["3333333333333333","3111111111111113","3111111111111113","3111121111121113","3111111111111113","3333333333333333","3111111111111113","3111121111121113","3111111111111113","3111111111111113","3333333333333333","3111121111121113","3111111111111113","3111111111111113","3333333333333333","3333333333333333"] },
+  "f_swamp": { "pal": {"1":"#3b4a34","2":"#2a3826","4":"#274a4a"},
+    "rows": ["1111111111111111","1144111111111111","1144111111114411","1111111111114411","1111111121111111","1111111111111111","1144111111111121","1144111111114411","1111111111114411","1112111111111111","1111111111111111","1111114411111111","1111114411112111","1111111111111111","1121111111114411","1111111111114411"] },
+  "f_forest": { "pal": {"1":"#3a5a2e","2":"#2c4622","3":"#4f7c3a"},
+    "rows": ["1111111111111111","1311111131111111","1111111111113111","1112111111111111","1111111311111131","1111111111111111","1311111111131111","1111131111111111","1111111111113111","1131111111111111","1111113111111131","1111111111111111","1311111131111111","1111111111113111","1112111111111111","1111111111131111"] }
 };
+const REGION_FLOOR = ['f_castle', 'f_mtn', 'f_fort', 'f_swamp', 'f_forest'];
 const _sprCache = {};
 function makeSprite(key, px) {
   const ck = key + '@' + px;
@@ -144,7 +179,7 @@ function makeSprite(key, px) {
 }
 
 // ===== 定数 =====
-const SAVE_KEY = 'gyaku-rpg-save-v2';
+const SAVE_KEY = 'gyaku-rpg-save-v3';
 const HERB_HEAL_RATE = 0.4;
 const HERB_BASE_PRICE = 300;
 const WEAR_PER_HIT = 1.4;       // 被弾1回でレベルが下がる量（恒久）
@@ -204,6 +239,26 @@ const ROSTER = [];
 REGIONS.forEach((r, ri) => r.list.forEach((k) => ROSTER.push({ region: ri, key: k })));
 const PARTY = ['賢者リーナ', '戦士ガロ', '僧侶ミラ'];
 
+// ===== ワールドマップ（m=山/壁, w=水, .=草原, 0-4=地域, V=故郷）=====
+const WORLD = [
+  'mmmmmmmmm',
+  'm...0...m',
+  'm.......m',
+  'm...1...m',
+  'm.......m',
+  'm...2...m',
+  'm.......m',
+  'm...3...m',
+  'm.......m',
+  'm...4...m',
+  'm.......m',
+  'm...V...m',
+  'mmmmmmmmm',
+];
+const W_W = WORLD[0].length, W_H = WORLD.length;
+const LOC = {}; let VILLAGE_POS = null;
+WORLD.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const c = row[x]; if (c >= '0' && c <= '4') LOC[+c] = { x, y }; if (c === 'V') VILLAGE_POS = { x, y }; } });
+
 // ===== 状態 =====
 let G = null;
 let battle = null;
@@ -215,6 +270,7 @@ function newGame() {
     pos: 0, saved: 0, lost: 0, opened: false, finaleDone: false,
     party: PARTY.slice(),
     firedEnter: [], firedClear: [], forgot: {}, choices: {}, seenHint: {},
+    view: 'world', heroX: LOC[0].x, heroY: LOC[0].y + 1, dungeonRegion: -1,
   };
 }
 
@@ -307,7 +363,7 @@ function showTitle() {
     </div>`;
   const saved = load();
   const list = [{ label: 'はじめから', primary: true, wide: !saved, fn: () => { clearSave(); G = newGame(); showOpening(); } }];
-  if (saved) list.push({ label: 'つづきから', fn: () => { G = Object.assign(newGame(), saved); renderHud(); goMap(); } });
+  if (saved) list.push({ label: 'つづきから', fn: () => { G = Object.assign(newGame(), saved); renderHud(); renderScene(); } });
   setCmds(list, true);
 }
 
@@ -338,57 +394,134 @@ function showOpening() {
         'やくそうは傷をふさぐ。だが、削れた強さは戻らない。',
         '——人質を救えば、自分が削れる。見捨てれば、強いまま進める。',
         '物語はここから、終わりに向かって始まる。',
-      ], () => { G.opened = true; renderHud(); save(); goMap(); });
+      ], () => { G.opened = true; renderHud(); save(); startJourney(); });
     }}]);
   });
 }
 
-// ===== 進行：マップ → 戦闘 → イベント =====
-function goMap() {
-  // 地域入場イベント
-  const ri = curRegion();
-  if (G.pos < ROSTER.length && !G.firedEnter.includes(ri)) {
-    G.firedEnter.push(ri);
-    return runEvents(REGIONS[ri].onEnter, showMap);
-  }
-  showMap();
-}
-
-function showMap() {
-  renderHud(); save();
-  if (G.pos >= ROSTER.length) { return showFinaleGate(); }
-  const ri = curRegion();
-  let html = `<div class="map-scene"><h2>🛩 飛行艇 — 世界を逆走する</h2>
-    <div class="map-sub">魔王城から故郷へ。残党は人里を盾に防衛線を張っている。手前から順に突破せよ。</div>`;
-  REGIONS.forEach((r, i) => {
-    const done = allClearedRegion(i);
-    const cur = (i === ri);
-    const locked = i > ri;
-    let state;
-    if (locked) state = `🔒 手前の${REGIONS[i-1].name}を抜くまで進めない`;
-    else if (done) state = '<span class="ok">✓ 殲滅完了</span>';
-    else state = `<span class="alert">残り${regionRemain(i)}体</span>`;
-    html += `<div class="region win ${locked?'locked':''} ${done?'cleared':''}">
-      <div class="r-icon">${makeSprite(ENEMIES[r.list[0]].sprite, 3)}</div>
-      <div class="r-info"><div class="r-name">${r.name}</div>
-        <div class="r-state">${r.desc} — ${state}</div></div></div>`;
-  });
-  html += '</div>';
-  stage.innerHTML = html;
-  const next = ROSTER[G.pos];
-  const e = ENEMIES[next.key];
-  const s = stats();
-  setCmds([
-    { label: `⚔️ 次の残党（${e.name}）と戦う`, primary: true, wide: true, fn: () => startBattle(next.key) },
-    { label: `🌿 やくそうを使う (×${G.herbs})`, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: useHerbMap },
-    { label: `💰 行商人 (${herbPrice().toLocaleString()}G)`, fn: visitMerchant },
-    { label: '🛡 そうび／仲間', wide: true, fn: showStatus },
-  ], true);
-}
+// ===== マップ（ドラクエ風：ワールドマップ＋部屋移動ダンジョン）=====
 function regionStart(i) { let n = 0; for (let k = 0; k < i; k++) n += REGIONS[k].list.length; return n; }
-function regionRemain(i) { const start = regionStart(i), end = start + REGIONS[i].list.length; return Math.max(0, end - Math.max(G.pos, start)); }
 function allClearedRegion(i) { return G.pos >= regionStart(i) + REGIONS[i].list.length; }
+function tileAt(x, y) { return (y < 0 || y >= W_H || x < 0 || x >= W_W) ? 'm' : WORLD[y][x]; }
+function walkable(x, y) { const c = tileAt(x, y); return c !== 'm' && c !== 'w'; }
+function regionAt(x, y) { const c = WORLD[y] && WORLD[y][x]; return (c >= '0' && c <= '4') ? +c : null; }
+function isVillage(x, y) { return VILLAGE_POS && VILLAGE_POS.x === x && VILLAGE_POS.y === y; }
 
+function renderScene() { if (G.view === 'dungeon') renderDungeon(); else renderWorld(); }
+function startJourney() { G.view = 'world'; G.heroX = LOC[0].x; G.heroY = LOC[0].y + 1; G.dungeonRegion = -1; renderScene(); }
+
+function mkCell() { const c = document.createElement('div'); c.className = 'cell'; return c; }
+function tileBg(key) { return `<div class="bg">${makeSprite(key, 2)}</div>`; }
+function spriteOv(key) { return `<div class="ov">${makeSprite(key, 1.5)}</div>`; }
+
+function renderWorld() {
+  renderHud(); save();
+  stage.innerHTML = '';
+  const wrap = document.createElement('div'); wrap.className = 'mapwrap';
+  const ttl = document.createElement('div'); ttl.className = 'maptitle'; ttl.textContent = '🗺 世界地図 — 故郷へ'; wrap.appendChild(ttl);
+  const grid = document.createElement('div'); grid.className = 'mapgrid'; grid.style.gridTemplateColumns = `repeat(${W_W},30px)`;
+  for (let y = 0; y < W_H; y++) for (let x = 0; x < W_W; x++) {
+    const t = WORLD[y][x];
+    const cell = mkCell();
+    const terrain = t === 'w' ? 't_water' : t === 'm' ? 't_mtn' : ((x + y) % 2 ? 't_grass' : 't_grass2');
+    cell.innerHTML = tileBg(terrain);
+    const ri = regionAt(x, y);
+    if (ri !== null) {
+      const cleared = allClearedRegion(ri), locked = ri > curRegion();
+      cell.className += ' loc' + (locked ? ' lock' : (!cleared ? ' cur' : ''));
+      cell.innerHTML += cleared ? '<div class="ov">✓</div>' : spriteOv(ENEMIES[REGIONS[ri].list[0]].sprite);
+      cell.innerHTML += `<div class="lbl">${REGIONS[ri].name}</div>`;
+    } else if (isVillage(x, y)) {
+      const open = G.pos >= ROSTER.length;
+      cell.className += ' loc' + (open ? ' cur' : ' lock');
+      cell.innerHTML += '<div class="ov">🏠</div><div class="lbl">故郷</div>';
+    }
+    if (x === G.heroX && y === G.heroY) cell.innerHTML += spriteOv('hero');
+    if ((Math.abs(x - G.heroX) + Math.abs(y - G.heroY)) === 1 && walkable(x, y)) {
+      cell.className += ' tap'; cell.onclick = () => worldTap(x, y);
+    }
+    grid.appendChild(cell);
+  }
+  wrap.appendChild(grid);
+  const hint = document.createElement('div'); hint.className = 'maphint';
+  hint.innerHTML = 'まわりのマスをタップして移動。<br>残党のいる土地に入って殲滅せよ。';
+  wrap.appendChild(hint);
+  stage.appendChild(wrap);
+  mapMenu(false);
+}
+function worldTap(x, y) {
+  if ((Math.abs(x - G.heroX) + Math.abs(y - G.heroY)) !== 1 || !walkable(x, y)) return;
+  G.heroX = x; G.heroY = y;
+  const ri = regionAt(x, y);
+  if (ri !== null) return tryEnterRegion(ri);
+  if (isVillage(x, y)) return tryFinale();
+  renderWorld();
+}
+function tryEnterRegion(ri) {
+  if (allClearedRegion(ri)) { renderWorld(); return; }
+  if (ri > curRegion()) { renderWorld(); showMsgs(['まだ手前の残党を片付けていない。'], renderWorld); return; }
+  if (!G.firedEnter.includes(ri)) { G.firedEnter.push(ri); return runEvents(REGIONS[ri].onEnter, () => enterRegionAfterEvents(ri)); }
+  enterRegionAfterEvents(ri);
+}
+function enterRegionAfterEvents(ri) { if (allClearedRegion(ri)) backToWorld(ri); else showDungeon(ri); }
+function showDungeon(ri) { G.view = 'dungeon'; G.dungeonRegion = ri; renderDungeon(); }
+function backToWorld(ri) { G.view = 'world'; G.dungeonRegion = -1; G.heroX = LOC[ri].x; G.heroY = LOC[ri].y; renderWorld(); }
+function tryFinale() {
+  if (G.pos >= ROSTER.length) startFinale();
+  else showMsgs(['まだ残党が残っている。村へは帰れない。'], renderWorld);
+}
+
+function renderDungeon() {
+  renderHud(); save();
+  const ri = G.dungeonRegion, reg = REGIONS[ri], list = reg.list, K = list.length;
+  const cleared = G.pos - regionStart(ri);
+  stage.innerHTML = '';
+  const wrap = document.createElement('div'); wrap.className = 'mapwrap';
+  const ttl = document.createElement('div'); ttl.className = 'maptitle'; ttl.textContent = '🏛 ' + reg.name; wrap.appendChild(ttl);
+  const grid = document.createElement('div'); grid.className = 'mapgrid'; grid.style.gridTemplateColumns = `repeat(${K + 2},30px)`;
+  const floor = REGION_FLOOR[ri];
+  for (let i = 0; i < K + 2; i++) {
+    const cell = mkCell(); let label = '';
+    cell.innerHTML = tileBg(floor);
+    if (i === 0) { cell.innerHTML += '<div class="ov">🚪</div>'; label = '入口'; }
+    else if (i === K + 1) { cell.className += ' loc' + (cleared >= K ? ' cur' : ' lock'); cell.innerHTML += '<div class="ov">➡️</div>'; label = '出口'; }
+    else {
+      const roomIdx = i - 1, key = list[roomIdx];
+      if (roomIdx < cleared) cell.innerHTML += '<div class="ov">✓</div>';
+      else if (roomIdx === cleared) { cell.className += ' loc cur'; cell.innerHTML += spriteOv(ENEMIES[key].sprite); label = ENEMIES[key].name.slice(0, 5); }
+      else { cell.className += ' lock'; cell.innerHTML += '<div class="ov">？</div>'; }
+    }
+    if (label) cell.innerHTML += `<div class="lbl">${label}</div>`;
+    if (i === cleared) cell.innerHTML += spriteOv('hero');
+    if (i === cleared + 1) { cell.className += ' tap'; cell.onclick = () => dungeonTap(i); }
+    grid.appendChild(cell);
+  }
+  wrap.appendChild(grid);
+  const hint = document.createElement('div'); hint.className = 'maphint';
+  hint.innerHTML = (cleared >= K) ? 'すべて殲滅した。右の出口へ進め。' : '右の部屋に進み、残党と戦え。';
+  wrap.appendChild(hint);
+  stage.appendChild(wrap);
+  mapMenu(true);
+}
+function dungeonTap(i) {
+  const ri = G.dungeonRegion, K = REGIONS[ri].list.length, cleared = G.pos - regionStart(ri);
+  if (i !== cleared + 1) return;
+  if (i <= K) { startBattle(REGIONS[ri].list[i - 1]); return; }
+  if (cleared < K) return;
+  if (!G.firedClear.includes(ri)) { G.firedClear.push(ri); return runEvents(REGIONS[ri].onClear, () => backToWorld(ri)); }
+  backToWorld(ri);
+}
+
+function mapMenu(inDungeon) {
+  const s = stats();
+  const list = [{ label: `🌿 やくそう (×${G.herbs})`, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: () => {
+    const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * HERB_HEAL_RATE)); G.herbs--; G.hp += heal;
+    renderHud(); showMsgs([`やくそうを使った。HPが ${heal} 回復した。`], renderScene);
+  } }];
+  if (!inDungeon) list.push({ label: `💰 行商人 (${herbPrice().toLocaleString()}G)`, fn: visitMerchant });
+  list.push({ label: '🛡 そうび／仲間', wide: true, fn: showStatus });
+  setCmds(list, true);
+}
 function showStatus() {
   const s = stats();
   const party = G.party.length ? G.party.join('、') : '——（もう、誰もいない）';
@@ -398,12 +531,7 @@ function showStatus() {
     `削れるほど武具の輝きも鈍る。レベルが下がれば、やがてただの鉄に。`,
     `<b>仲間</b>：${party}`,
     `魔力（じゅもん）は有限。戦いでは戻らない。使いどころを選べ。`,
-  ], showMap);
-}
-function useHerbMap() {
-  const s = stats(); G.herbs--;
-  const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * HERB_HEAL_RATE)); G.hp += heal;
-  renderHud(); showMsgs([`やくそうを使った。HPが ${heal} 回復した。`], showMap);
+  ], renderScene);
 }
 function visitMerchant() {
   const price = herbPrice();
@@ -412,9 +540,9 @@ function visitMerchant() {
     setCmds([
       { label: `買う (${price.toLocaleString()}G)`, primary: true, disabled: G.gold < price, fn: () => {
         G.gold -= price; G.herbs++; G.herbBought++; renderHud();
-        showMsgs(['やくそうを手に入れた。', '行商人「毎度あり！　次はこの倍だよ」'], showMap);
+        showMsgs(['やくそうを手に入れた。', '行商人「毎度あり！　次はこの倍だよ」'], renderScene);
       } },
-      { label: 'やめる', fn: showMap },
+      { label: 'やめる', fn: renderScene },
     ], true);
   });
 }
@@ -715,19 +843,14 @@ function checkForget(before) {
   return out;
 }
 function afterBattleFlow() {
-  // 戦線移動で少し休息（HPと魔力が少し戻る。削れた強さは戻らない）
+  // 戦闘のあと、少し息を整える（HPと魔力が少し戻る。削れた強さは戻らない）
   const s = stats();
   const restHp = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * 0.30));
   if (restHp > 0) G.hp += restHp;
   G.mp = Math.min(MAXMP, G.mp + Math.round(MAXMP * REST_MP));
-  // 地域クリアイベント？
-  const justRegion = ROSTER[G.pos - 1].region;
-  const clearedRegion = allClearedRegion(justRegion);
-  if (clearedRegion && !G.firedClear.includes(justRegion)) {
-    G.firedClear.push(justRegion);
-    return runEvents(REGIONS[justRegion].onClear, goMap);
-  }
-  goMap();
+  renderHud(); save();
+  // ダンジョンへ戻る（勇者は次の部屋の手前に立っている。地域クリアイベントは出口で発火）
+  showDungeon(ROSTER[G.pos - 1].region);
 }
 function defeat() {
   const e = battle.e, wasFinale = battle.isFinale;
@@ -839,7 +962,7 @@ const EVENTS = {
         renderHud(); save();
         showMsgs([`隊長「賢明だ」　討伐隊が沼の残党${cnt}体を、人質もろとも焼き払った。`,
           '勇者は一歩も動かず、強いまま——そして、何人もの悲鳴を背に進んだ。', '残った強さの分だけ、失ったものがある。'],
-          () => goMap());
+          next);
       } },
     ]);
   },
