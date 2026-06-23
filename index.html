@@ -153,7 +153,13 @@ const SPRITES = {
   "f_swamp": { "pal": {"1":"#3b4a34","2":"#2a3826","4":"#274a4a"},
     "rows": ["1111111111111111","1144111111111111","1144111111114411","1111111111114411","1111111121111111","1111111111111111","1144111111111121","1144111111114411","1111111111114411","1112111111111111","1111111111111111","1111114411111111","1111114411112111","1111111111111111","1121111111114411","1111111111114411"] },
   "f_forest": { "pal": {"1":"#3a5a2e","2":"#2c4622","3":"#4f7c3a"},
-    "rows": ["1111111111111111","1311111131111111","1111111111113111","1112111111111111","1111111311111131","1111111111111111","1311111111131111","1111131111111111","1111111111113111","1131111111111111","1111113111111131","1111111111111111","1311111131111111","1111111111113111","1112111111111111","1111111111131111"] }
+    "rows": ["1111111111111111","1311111131111111","1111111111113111","1112111111111111","1111111311111131","1111111111111111","1311111111131111","1111131111111111","1111111111113111","1131111111111111","1111113111111131","1111111111111111","1311111131111111","1111111111113111","1112111111111111","1111111111131111"] },
+  "d_wall": { "pal": {"1":"#1a1a26","2":"#0d0d15","3":"#2c2c3c"},
+    "rows": ["3333333333333333","1111111111111111","1111111211111112","1111111211111112","2222222222222222","1211111111111111","1211111111111111","3333333333333333","1111111211111112","1111111211111112","2222222222222222","1211111111111111","1211111111111111","3333333333333333","1111111211111112","2222222222222222"] },
+  "t_cloud": { "pal": {"1":"#a8caea","2":"#86b2de","3":"#ffffff"},
+    "rows": ["1111111111111111","1113311111133111","1111111111111111","1331111113311111","1111111111111111","1111133111111331","1111111111111111","3311111133111111","1111111111111111","1133111111133111","1111111111111111","1111113311111133","1111111111111111","1331111133111111","1111111111111111","1111133111111111"] },
+  "t_void": { "pal": {"1":"#0a0a18","2":"#05050c","3":"#3a3a5a"},
+    "rows": ["1111111111111111","1111311111111111","1111111111131111","1111111111111111","1311111111111131","1111111111111111","1111111311111111","1111111111111111","1131111111111311","1111111111111111","1111111111131111","1111311111111111","1111111111111111","1311111111111111","1111111131111111","1111111111111111"] }
 };
 const REGION_FLOOR = ['f_castle', 'f_mtn', 'f_fort', 'f_swamp', 'f_forest'];
 const _sprCache = {};
@@ -224,7 +230,7 @@ const FINALE = { name:'さいごのスライム', sprite:'slime', hp:60, atk:8, 
 // ===== 地域（有限の出撃順）＋イベント =====
 const REGIONS = [
   { name:'魔王城',   desc:'すべてが終わった場所', list:['durahan','golem','durahan','golem'],
-    onEnter:[], onClear:['leave_sage'] },
+    onEnter:[], onClear:['airship_descent', 'leave_sage'] },
   { name:'竜の山脈', desc:'古竜たちの住処',       list:['dragon','icedrake','dragon','icedrake'],
     onEnter:['village_unwelcome'], onClear:['leave_warrior'] },
   { name:'黒鉄の砦', desc:'魔王軍の前線基地跡',   list:['deathknight','scorpion','deathknight','scorpion'],
@@ -241,8 +247,11 @@ const PARTY = ['賢者リーナ', '戦士ガロ', '僧侶ミラ'];
 
 // ===== ワールドマップ（m=山/壁, w=水, .=草原, 0-4=地域, V=故郷）=====
 const WORLD = [
+  'vvvcccvvv',
+  'vvvc0cvvv',
+  'vvvcccvvv',
+  'vvvvvvvvv',
   'mmmmmmmmm',
-  'm...0...m',
   'm.......m',
   'm...1...m',
   'm.......m',
@@ -258,6 +267,35 @@ const WORLD = [
 const W_W = WORLD[0].length, W_H = WORLD.length;
 const LOC = {}; let VILLAGE_POS = null;
 WORLD.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const c = row[x]; if (c >= '0' && c <= '4') LOC[+c] = { x, y }; if (c === 'V') VILLAGE_POS = { x, y }; } });
+const GROUND_START = { x: LOC[1].x, y: LOC[1].y - 1 };
+
+// ===== ダンジョン迷路（地域ごとに自動生成・決定的）=====
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function shuffle(arr, rng) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = arr[i]; arr[i] = arr[j]; arr[j] = t; } return arr; }
+function genMaze(cw, ch, seed) {
+  const W = cw * 2 + 1, H = ch * 2 + 1;
+  const g = []; for (let y = 0; y < H; y++) g.push(new Array(W).fill('#'));
+  const rng = mulberry32(seed);
+  (function carve(cx, cy) {
+    g[cy * 2 + 1][cx * 2 + 1] = '.';
+    for (const d of shuffle([[1, 0], [-1, 0], [0, 1], [0, -1]], rng)) {
+      const nx = cx + d[0], ny = cy + d[1];
+      if (nx >= 0 && nx < cw && ny >= 0 && ny < ch && g[ny * 2 + 1][nx * 2 + 1] === '#') {
+        g[cy * 2 + 1 + d[1]][cx * 2 + 1 + d[0]] = '.'; carve(nx, ny);
+      }
+    }
+  })(0, 0);
+  return g.map((r) => r.join(''));
+}
+REGIONS.forEach((r, ri) => {
+  const grid = genMaze(4, 4, 917 + ri * 131);
+  const W = grid[0].length, H = grid.length;
+  const cells = []; for (let y = 1; y < H; y += 2) for (let x = 1; x < W; x += 2) cells.push([x, y]);
+  const ent = [1, 1], ex = [W - 2, H - 2];
+  const cand = cells.filter((c) => !(c[0] === 1 && c[1] === 1) && !(c[0] === ex[0] && c[1] === ex[1]));
+  shuffle(cand, mulberry32(5000 + ri));
+  r._maze = { grid, W, H, ent, ex, rooms: cand.slice(0, r.list.length) };
+});
 
 // ===== 状態 =====
 let G = null;
@@ -267,10 +305,11 @@ let msgQueue = [], msgDone = null;
 function newGame() {
   return {
     wear: 0, hp: 0, mp: MAXMP, gold: 50000, herbs: 5, herbBought: 0,
-    pos: 0, saved: 0, lost: 0, opened: false, finaleDone: false,
+    cleared: REGIONS.map((r) => r.list.map(() => false)),
+    saved: 0, lost: 0, opened: false, finaleDone: false, descended: false,
     party: PARTY.slice(),
     firedEnter: [], firedClear: [], forgot: {}, choices: {}, seenHint: {},
-    view: 'world', heroX: LOC[0].x, heroY: LOC[0].y + 1, dungeonRegion: -1,
+    view: 'world', heroX: LOC[0].x, heroY: LOC[0].y + 1, dungeonRegion: -1, dx: 1, dy: 1,
   };
 }
 
@@ -282,8 +321,13 @@ const stats = () => {
   return { lv, maxHp: 40 + lv * 10, atk: baseAtk + eqAtk, def: baseDef + eqDef,
            matk: 6 + lv * 2, baseAtk, eqAtk, baseDef, eqDef };
 };
-const remaining = () => (ROSTER.length - G.pos) + (G.finaleDone ? 0 : 1);
-const curRegion = () => (G.pos < ROSTER.length ? ROSTER[G.pos].region : REGIONS.length - 1);
+const regionCleared = (ri) => G.cleared[ri].every(Boolean);
+const regionUnlocked = (ri) => ri === 0 || regionCleared(ri - 1);
+const curRegion = () => { for (let i = 0; i < REGIONS.length; i++) if (!regionCleared(i)) return i; return REGIONS.length; };
+const allRegionsDone = () => curRegion() >= REGIONS.length;
+const remaining = () => { let n = G.finaleDone ? 0 : 1; G.cleared.forEach((a) => a.forEach((c) => { if (!c) n++; })); return n; };
+const roomAt = (ri, x, y) => REGIONS[ri]._maze.rooms.findIndex((p) => p[0] === x && p[1] === y);
+const walkableD = (ri, x, y) => { const g = REGIONS[ri]._maze.grid; return g[y] && g[y][x] && g[y][x] !== '#'; };
 const herbPrice = () => HERB_BASE_PRICE * Math.pow(2, G.herbBought);
 const spellAvailable = (sp) => lvOf() >= sp.minLv;
 
@@ -387,7 +431,7 @@ function showOpening() {
         'だが、魔王が倒れても魔物がすべて消えるわけではない。世界にはまだ残党が <b>23体</b> 残っていた。',
         '行きは魔王だけを狙い、勇者は残党に目もくれず一直線に駆け抜けてきた。',
         'その残党がいま、勇者の背後——故郷へと続く道に集まり、人里を盾に防衛線を張っている。',
-        '勇者は飛行艇に乗り込む。手前の線から順に突破し、すべてを殲滅して故郷へ帰るのだ。',
+        'まずはこの天空の魔王城に巣食う残党を片づけ、飛行艇で地上へ降りる。そして手前から順に殲滅し、故郷へ帰るのだ。',
         '人類の「残党討伐隊」もすでに動き出している。彼らは——人質ごと魔物を焼く。',
         'そして勇者は気づいていた。魔王を前に研ぎ澄まされていた<b>「英雄の力」</b>が、もう抜けはじめていることに。',
         '<b>一撃もらうごとに、体は確かに弱っていく。</b>アドレナリンは引き、筋繊維はすり減り、レベルは下がっていく。',
@@ -400,12 +444,11 @@ function showOpening() {
 }
 
 // ===== マップ（ドラクエ風：ワールドマップ＋部屋移動ダンジョン）=====
-function regionStart(i) { let n = 0; for (let k = 0; k < i; k++) n += REGIONS[k].list.length; return n; }
-function allClearedRegion(i) { return G.pos >= regionStart(i) + REGIONS[i].list.length; }
 function tileAt(x, y) { return (y < 0 || y >= W_H || x < 0 || x >= W_W) ? 'm' : WORLD[y][x]; }
-function walkable(x, y) { const c = tileAt(x, y); return c !== 'm' && c !== 'w'; }
+function walkable(x, y) { const c = tileAt(x, y); return c !== 'm' && c !== 'w' && c !== 'v'; }
 function regionAt(x, y) { const c = WORLD[y] && WORLD[y][x]; return (c >= '0' && c <= '4') ? +c : null; }
 function isVillage(x, y) { return VILLAGE_POS && VILLAGE_POS.x === x && VILLAGE_POS.y === y; }
+function terrainKey(t, x, y) { return t === 'w' ? 't_water' : t === 'm' ? 't_mtn' : t === 'c' ? 't_cloud' : t === 'v' ? 't_void' : ((x + y) % 2 ? 't_grass' : 't_grass2'); }
 
 function renderScene() { if (G.view === 'dungeon') renderDungeon(); else renderWorld(); }
 function startJourney() { G.view = 'world'; G.heroX = LOC[0].x; G.heroY = LOC[0].y + 1; G.dungeonRegion = -1; renderScene(); }
@@ -418,21 +461,21 @@ function renderWorld() {
   renderHud(); save();
   stage.innerHTML = '';
   const wrap = document.createElement('div'); wrap.className = 'mapwrap';
-  const ttl = document.createElement('div'); ttl.className = 'maptitle'; ttl.textContent = '🗺 世界地図 — 故郷へ'; wrap.appendChild(ttl);
+  const ttl = document.createElement('div'); ttl.className = 'maptitle';
+  ttl.textContent = G.descended ? '🗺 世界地図 — 故郷へ' : '☁ 天空の魔王城'; wrap.appendChild(ttl);
   const grid = document.createElement('div'); grid.className = 'mapgrid'; grid.style.gridTemplateColumns = `repeat(${W_W},30px)`;
   for (let y = 0; y < W_H; y++) for (let x = 0; x < W_W; x++) {
     const t = WORLD[y][x];
     const cell = mkCell();
-    const terrain = t === 'w' ? 't_water' : t === 'm' ? 't_mtn' : ((x + y) % 2 ? 't_grass' : 't_grass2');
-    cell.innerHTML = tileBg(terrain);
+    cell.innerHTML = tileBg(terrainKey(t, x, y));
     const ri = regionAt(x, y);
     if (ri !== null) {
-      const cleared = allClearedRegion(ri), locked = ri > curRegion();
-      cell.className += ' loc' + (locked ? ' lock' : (!cleared ? ' cur' : ''));
-      cell.innerHTML += cleared ? '<div class="ov">✓</div>' : spriteOv(ENEMIES[REGIONS[ri].list[0]].sprite);
-      cell.innerHTML += `<div class="lbl">${REGIONS[ri].name}</div>`;
+      const cur = ri === curRegion(), cleared = regionCleared(ri), revealed = ri <= curRegion();
+      cell.className += ' loc' + (cur ? ' cur' : '') + (revealed ? '' : ' lock');
+      cell.innerHTML += cleared ? '<div class="ov">✓</div>' : (revealed ? spriteOv(ENEMIES[REGIONS[ri].list[0]].sprite) : '<div class="ov">？</div>');
+      cell.innerHTML += `<div class="lbl">${revealed ? REGIONS[ri].name : '？？？'}</div>`;
     } else if (isVillage(x, y)) {
-      const open = G.pos >= ROSTER.length;
+      const open = allRegionsDone();
       cell.className += ' loc' + (open ? ' cur' : ' lock');
       cell.innerHTML += '<div class="ov">🏠</div><div class="lbl">故郷</div>';
     }
@@ -444,7 +487,7 @@ function renderWorld() {
   }
   wrap.appendChild(grid);
   const hint = document.createElement('div'); hint.className = 'maphint';
-  hint.innerHTML = 'まわりのマスをタップして移動。<br>残党のいる土地に入って殲滅せよ。';
+  hint.innerHTML = G.descended ? 'まわりのマスをタップして移動。<br>この先に何があるかは——進んでみるまで分からない。' : '魔王城の残党を殲滅し、飛行艇で地上へ降りよ。';
   wrap.appendChild(hint);
   stage.appendChild(wrap);
   mapMenu(false);
@@ -458,58 +501,71 @@ function worldTap(x, y) {
   renderWorld();
 }
 function tryEnterRegion(ri) {
-  if (allClearedRegion(ri)) { renderWorld(); return; }
-  if (ri > curRegion()) { renderWorld(); showMsgs(['まだ手前の残党を片付けていない。'], renderWorld); return; }
+  if (regionCleared(ri)) { renderWorld(); return; }
+  if (!regionUnlocked(ri)) { renderWorld(); showMsgs(['霧が濃く、まだ近づけない。手前の残党を片付けねば。'], renderWorld); return; }
   if (!G.firedEnter.includes(ri)) { G.firedEnter.push(ri); return runEvents(REGIONS[ri].onEnter, () => enterRegionAfterEvents(ri)); }
   enterRegionAfterEvents(ri);
 }
-function enterRegionAfterEvents(ri) { if (allClearedRegion(ri)) backToWorld(ri); else showDungeon(ri); }
-function showDungeon(ri) { G.view = 'dungeon'; G.dungeonRegion = ri; renderDungeon(); }
-function backToWorld(ri) { G.view = 'world'; G.dungeonRegion = -1; G.heroX = LOC[ri].x; G.heroY = LOC[ri].y; renderWorld(); }
+function enterRegionAfterEvents(ri) { if (regionCleared(ri)) backToWorld(ri); else showDungeon(ri); }
+function showDungeon(ri) { G.view = 'dungeon'; G.dungeonRegion = ri; const m = REGIONS[ri]._maze; G.dx = m.ent[0]; G.dy = m.ent[1]; renderDungeon(); }
+function backToWorld(ri) {
+  G.view = 'world'; G.dungeonRegion = -1;
+  if (ri === 0 && !G.descended) { G.descended = true; G.heroX = GROUND_START.x; G.heroY = GROUND_START.y; }
+  else { G.heroX = LOC[ri].x; G.heroY = LOC[ri].y; }
+  renderWorld();
+}
 function tryFinale() {
-  if (G.pos >= ROSTER.length) startFinale();
+  if (allRegionsDone()) startFinale();
   else showMsgs(['まだ残党が残っている。村へは帰れない。'], renderWorld);
 }
 
 function renderDungeon() {
   renderHud(); save();
-  const ri = G.dungeonRegion, reg = REGIONS[ri], list = reg.list, K = list.length;
-  const cleared = G.pos - regionStart(ri);
+  const ri = G.dungeonRegion, reg = REGIONS[ri], mz = reg._maze, g0 = mz.grid;
+  const done = regionCleared(ri), floor = REGION_FLOOR[ri];
   stage.innerHTML = '';
   const wrap = document.createElement('div'); wrap.className = 'mapwrap';
   const ttl = document.createElement('div'); ttl.className = 'maptitle'; ttl.textContent = '🏛 ' + reg.name; wrap.appendChild(ttl);
-  const grid = document.createElement('div'); grid.className = 'mapgrid'; grid.style.gridTemplateColumns = `repeat(${K + 2},30px)`;
-  const floor = REGION_FLOOR[ri];
-  for (let i = 0; i < K + 2; i++) {
+  const grid = document.createElement('div'); grid.className = 'mapgrid'; grid.style.gridTemplateColumns = `repeat(${mz.W},30px)`;
+  for (let y = 0; y < mz.H; y++) for (let x = 0; x < mz.W; x++) {
+    const wall = g0[y][x] === '#';
     const cell = mkCell(); let label = '';
-    cell.innerHTML = tileBg(floor);
-    if (i === 0) { cell.innerHTML += '<div class="ov">🚪</div>'; label = '入口'; }
-    else if (i === K + 1) { cell.className += ' loc' + (cleared >= K ? ' cur' : ' lock'); cell.innerHTML += '<div class="ov">➡️</div>'; label = '出口'; }
-    else {
-      const roomIdx = i - 1, key = list[roomIdx];
-      if (roomIdx < cleared) cell.innerHTML += '<div class="ov">✓</div>';
-      else if (roomIdx === cleared) { cell.className += ' loc cur'; cell.innerHTML += spriteOv(ENEMIES[key].sprite); label = ENEMIES[key].name.slice(0, 5); }
-      else { cell.className += ' lock'; cell.innerHTML += '<div class="ov">？</div>'; }
+    cell.innerHTML = tileBg(wall ? 'd_wall' : floor);
+    if (!wall) {
+      if (x === mz.ent[0] && y === mz.ent[1]) cell.innerHTML += '<div class="ov">🚪</div>';
+      else if (x === mz.ex[0] && y === mz.ex[1]) { cell.className += ' loc' + (done ? ' cur' : ' lock'); cell.innerHTML += '<div class="ov">🔻</div>'; label = '階段'; }
+      else {
+        const idx = roomAt(ri, x, y);
+        if (idx >= 0) {
+          if (G.cleared[ri][idx]) cell.innerHTML += '<div class="ov">✓</div>';
+          else { cell.className += ' loc cur'; cell.innerHTML += spriteOv(ENEMIES[reg.list[idx]].sprite); }
+        }
+      }
     }
     if (label) cell.innerHTML += `<div class="lbl">${label}</div>`;
-    if (i === cleared) cell.innerHTML += spriteOv('hero');
-    if (i === cleared + 1) { cell.className += ' tap'; cell.onclick = () => dungeonTap(i); }
+    if (x === G.dx && y === G.dy) cell.innerHTML += spriteOv('hero');
+    if ((Math.abs(x - G.dx) + Math.abs(y - G.dy)) === 1 && !wall) { cell.className += ' tap'; cell.onclick = () => dungeonStep(x, y); }
     grid.appendChild(cell);
   }
   wrap.appendChild(grid);
   const hint = document.createElement('div'); hint.className = 'maphint';
-  hint.innerHTML = (cleared >= K) ? 'すべて殲滅した。右の出口へ進め。' : '右の部屋に進み、残党と戦え。';
+  hint.innerHTML = done ? '残党は全滅した。🔻 階段から次へ進め。' : '迷路を進み、残党（敵）の部屋を見つけて殲滅せよ。';
   wrap.appendChild(hint);
   stage.appendChild(wrap);
   mapMenu(true);
 }
-function dungeonTap(i) {
-  const ri = G.dungeonRegion, K = REGIONS[ri].list.length, cleared = G.pos - regionStart(ri);
-  if (i !== cleared + 1) return;
-  if (i <= K) { startBattle(REGIONS[ri].list[i - 1]); return; }
-  if (cleared < K) return;
-  if (!G.firedClear.includes(ri)) { G.firedClear.push(ri); return runEvents(REGIONS[ri].onClear, () => backToWorld(ri)); }
-  backToWorld(ri);
+function dungeonStep(x, y) {
+  const ri = G.dungeonRegion, mz = REGIONS[ri]._maze;
+  if ((Math.abs(x - G.dx) + Math.abs(y - G.dy)) !== 1 || mz.grid[y][x] === '#') return;
+  G.dx = x; G.dy = y;
+  const idx = roomAt(ri, x, y);
+  if (idx >= 0 && !G.cleared[ri][idx]) { startBattle(REGIONS[ri].list[idx], ri, idx); return; }
+  if (x === mz.ex[0] && y === mz.ex[1]) {
+    if (!regionCleared(ri)) { renderDungeon(); showMsgs(['まだ残党がいる。階段は塞がれている。'], renderDungeon); return; }
+    if (!G.firedClear.includes(ri)) { G.firedClear.push(ri); return runEvents(REGIONS[ri].onClear, () => backToWorld(ri)); }
+    return backToWorld(ri);
+  }
+  renderDungeon();
 }
 
 function mapMenu(inDungeon) {
@@ -558,9 +614,9 @@ function magMult(e, elem) {
 }
 function squadDps(e) { return e.kind === 'squad' ? Math.round(e.hp * 0.14) : Math.round(e.hp * 0.07); }
 
-function startBattle(key) {
+function startBattle(key, region, roomIdx) {
   const e = ENEMIES[key];
-  battle = { key, e, isFinale: false, hp: e.hp, maxHp: e.hp,
+  battle = { key, e, isFinale: false, region, roomIdx, lvStart: lvOf(), hp: e.hp, maxHp: e.hp,
              hostage: { hp: 40, max: 40, dead: false }, soldier: { down: false },
              breathTimer: (e.threat === 'breath' ? 3 : -1), guarding: false };
   renderBattle(e, false);
@@ -570,7 +626,7 @@ function startBattle(key) {
   showMsgs(intro, battleMenu);
 }
 function startFinale() {
-  battle = { key: 'finale', e: FINALE, isFinale: true, hp: FINALE.hp, maxHp: FINALE.hp,
+  battle = { key: 'finale', e: FINALE, isFinale: true, lvStart: lvOf(), hp: FINALE.hp, maxHp: FINALE.hp,
              hostage: null, soldier: null, breathTimer: -1, guarding: false };
   renderBattle(FINALE, true);
   showMsgs([
@@ -704,11 +760,11 @@ function playerGuard() {
   resolveTurn(['勇者は人質の前に立ちはだかった！'], true);
 }
 function sacrificeBattle() {
-  const e = battle.e;
+  const e = battle.e, region = battle.region, roomIdx = battle.roomIdx;
   const hadHostage = battle.hostage && !battle.hostage.dead;
   if (hadHostage) G.lost++;
-  battle = null; G.pos++;
-  renderHud(); save();
+  G.cleared[region][roomIdx] = true;
+  battle = null; renderHud(); save();
   showMsgs([
     '勇者は背を向けた。守らない、という選択。',
     hadHostage ? `討伐隊が${e.name}を片づける——人質もろとも。` : `討伐隊が${e.name}を片づけた。`,
@@ -821,16 +877,15 @@ function victory() {
   if (!battle.hostage.dead) { G.saved++; G.herbs++; msgs.push('市民を守りきった！　やくそうを1つもらった。'); }
   else { G.lost++; msgs.push('討伐隊「作戦成功。報告書には犠牲者0と書いておきます」'); }
 
+  G.cleared[battle.region][battle.roomIdx] = true;
   const paid = Math.min(G.gold, e.gold || 0); G.gold -= paid;
   if (paid > 0) msgs.push(`復興支援金として ${paid.toLocaleString()}G を徴収された。`);
-  msgs.push(`残党は あと${remaining() - 1}体。`);
+  msgs.push(`残党は あと${remaining()}体。`);
 
-  const lvBefore = lvOf();
-  battle = null; G.pos++;
+  const lvBefore = battle.lvStart;
+  battle = null;
   renderHud(); save();
-  // 呪文を忘れる演出
-  const forgetMsgs = checkForget(lvBefore);
-  showMsgs(msgs.concat(forgetMsgs), afterBattleFlow);
+  showMsgs(msgs.concat(checkForget(lvBefore)), afterBattleFlow);
 }
 function checkForget(before) {
   const out = []; const now = lvOf();
@@ -849,11 +904,12 @@ function afterBattleFlow() {
   if (restHp > 0) G.hp += restHp;
   G.mp = Math.min(MAXMP, G.mp + Math.round(MAXMP * REST_MP));
   renderHud(); save();
-  // ダンジョンへ戻る（勇者は次の部屋の手前に立っている。地域クリアイベントは出口で発火）
-  showDungeon(ROSTER[G.pos - 1].region);
+  // 迷路に戻る（勇者は倒した部屋の上にいる）。階段は全滅後に開く
+  renderDungeon();
 }
 function defeat() {
-  const e = battle.e, wasFinale = battle.isFinale;
+  const wasFinale = battle.isFinale, lvBefore = battle.lvStart;
+  const region = battle.region, roomIdx = battle.roomIdx;
   const hadHostage = !wasFinale && battle.hostage && !battle.hostage.dead;
   battle = null;
   const s = stats(); G.hp = s.maxHp;
@@ -862,9 +918,10 @@ function defeat() {
   if (wasFinale) { renderHud(); save(); showMsgs(msgs, battleMenuRetryFinale); return; }
   // 残党は討伐隊が始末してしまった（人質ごと）
   if (hadHostage) G.lost++;
+  G.cleared[region][roomIdx] = true;
   msgs.push('気がつけば、討伐隊がその残党を片づけていた——人質もろとも。');
-  G.pos++; renderHud(); save();
-  showMsgs(msgs, afterBattleFlow);
+  renderHud(); save();
+  showMsgs(msgs.concat(checkForget(lvBefore)), afterBattleFlow);
 }
 function battleMenuRetryFinale() { startFinale(); }
 
@@ -885,6 +942,14 @@ function runEvents(ids, done) {
 function depart(name) { const i = G.party.indexOf(name); if (i >= 0) G.party.splice(i, 1); }
 
 const EVENTS = {
+  // ===== 天空の魔王城 → 飛行艇で地上へ降りる =====
+  airship_descent: (next) => showMsgs([
+    '魔王城の残党を、すべて殲滅した。',
+    '天空に浮かぶこの城も、もう用済みだ。',
+    '勇者は飛行艇に乗り込み、雲を抜けて——地上へと降りていく。',
+    '眼下に広がるのは、まだ見ぬ大地。この先に何が待つのか、空の上からは分からない。',
+  ], next),
+
   // ===== RPGの逆：仲間が“抜けていく” =====
   leave_sage: (next) => showMsgs([
     '飛行艇のデッキ。賢者リーナが杖を置いた。',
@@ -939,7 +1004,7 @@ const EVENTS = {
       { label: '見逃す', primary: true, fn: () => { G.choices.spared = true;
         showMsgs(['勇者は剣を納めた。', '魔物「……恩に着る。あんた、変わった勇者だな」',
           'モンスターを全滅させる旅の、逆。共に生きる道もある。'], next); } },
-      { label: '斬る（残党 −1）', fn: () => { G.choices.executed = true; if (G.pos < ROSTER.length) {/* 純粋演出。カウントは触らない */}
+      { label: '斬る', fn: () => { G.choices.executed = true;
         showMsgs(['勇者は剣を振るった。', '討伐隊「ご立派です。これでまた一体」', '勇者は、何も言えなかった。'], next); } },
     ]);
   },
@@ -958,7 +1023,7 @@ const EVENTS = {
         // 亡者の沼の残り残党を“被弾なしで”自動処理：人質は全滅、勇者は削れない
         const ri = curRegion();
         let cnt = 0;
-        while (G.pos < ROSTER.length && ROSTER[G.pos].region === ri) { G.lost++; G.pos++; cnt++; }
+        G.cleared[ri].forEach((c, k) => { if (!c) { G.cleared[ri][k] = true; G.lost++; cnt++; } });
         renderHud(); save();
         showMsgs([`隊長「賢明だ」　討伐隊が沼の残党${cnt}体を、人質もろとも焼き払った。`,
           '勇者は一歩も動かず、強いまま——そして、何人もの悲鳴を背に進んだ。', '残った強さの分だけ、失ったものがある。'],
