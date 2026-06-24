@@ -84,7 +84,9 @@
   .cell .bg { position:absolute; inset:0; }
   .cell .bg svg { width:30px; height:30px; display:block; }
   .cell .ov { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:17px; z-index:1; }
-  .cell .ov svg { width:24px; height:24px; }
+  .cell .ov svg { max-width:26px; max-height:26px; }
+  .cell .ov.big { font-size:30px; z-index:5; overflow:visible; }
+  .cell .ov.big svg { width:54px; height:54px; max-width:none; max-height:none; }
   .cell.loc::after { content:''; position:absolute; inset:0; box-shadow:inset 0 0 0 2px #ffd23b; pointer-events:none; z-index:3; }
   .cell.cur::after { box-shadow:inset 0 0 0 2px #6cf06c; }
   .cell.lock { filter:brightness(0.4); }
@@ -159,9 +161,41 @@ const SPRITES = {
   "t_cloud": { "pal": {"1":"#a8caea","2":"#86b2de","3":"#ffffff"},
     "rows": ["1111111111111111","1113311111133111","1111111111111111","1331111113311111","1111111111111111","1111133111111331","1111111111111111","3311111133111111","1111111111111111","1133111111133111","1111111111111111","1111113311111133","1111111111111111","1331111133111111","1111111111111111","1111133111111111"] },
   "t_void": { "pal": {"1":"#0a0a18","2":"#05050c","3":"#3a3a5a"},
-    "rows": ["1111111111111111","1111311111111111","1111111111131111","1111111111111111","1311111111111131","1111111111111111","1111111311111111","1111111111111111","1131111111111311","1111111111111111","1111111111131111","1111311111111111","1111111111111111","1311111111111111","1111111131111111","1111111111111111"] }
+    "rows": ["1111111111111111","1111311111111111","1111111111131111","1111111111111111","1311111111111131","1111111111111111","1111111311111111","1111111111111111","1131111111111311","1111111111111111","1111111111131111","1111311111111111","1111111111111111","1311111111111111","1111111131111111","1111111111111111"] },
+  "pillar": { "pal": {"1":"#5a5a6a","2":"#34343f","3":"#80808f"},
+    "rows": ["..3333..","..3223..","..3113..","..3113..","..3113..","..3113..","..3113..","..3113..",".331133.",".311113.","31111113","11111111"] },
+  "torch": { "pal": {"1":"#5a3a1a","2":"#2e1d0c","F":"#ff8a2a","Y":"#ffe24a","O":"#ff5a1a"},
+    "rows": ["...YY...","..YFFY..",".YFOOFY.",".FOOOOF.","..FOOF..","...FF...","...11...","...11...","..2112..","...22..."] },
+  "chest": { "pal": {"1":"#8a5a2a","2":"#5a3a18","G":"#ffd23b","W":"#caa45a"},
+    "rows": ["..........","..GGGGGG..",".WGGGGGGW.",".W111111W.",".WWWWWWWW.",".W11GG11W.",".W111111W.",".WWWWWWWW.",".2......2.",".........."] },
+  "crate": { "pal": {"1":"#9a6a3a","2":"#5a3a18","3":"#b88a4a"},
+    "rows": ["33333333","31111113","31311313","31131131","31113111","31131131","31311313","33333333"] },
+  "barrel": { "pal": {"1":"#9a6a3a","2":"#5a3a18","M":"#8a8a98"},
+    "rows": [".MMMMMM.","M111111M","M121121M","MMMMMMMM","M111111M","M121121M","M111111M",".MMMMMM."] },
+  "bones": { "pal": {"1":"#e8e8dc","K":"#1a1a18","2":"#9a9a8c"},
+    "rows": ["...1111...","..111111..","..1KK1KK1.","..111111..","...1KKK1..","....111...",".1.....1..","1111.1111."] },
+  "rock": { "pal": {"1":"#5a4a38","2":"#352a20","3":"#7c6650"},
+    "rows": ["....11....","...1331...","..133331..","..122221..",".13222231.",".12222221.","1322222231","1222222221"] },
+  "bush": { "pal": {"1":"#356626","2":"#21401a","3":"#54993a"},
+    "rows": ["...3..3...","..333333..",".33333333.","3331333133","3333333333","3133333313","3333333333",".33333333.","...3.11...","....11...."] },
+  "puddle": { "pal": {"1":"#244a4a","2":"#16322f","3":"#3a6f6a"},
+    "rows": ["..........","...3333...","..311113..",".31111113.",".31111113.","..311113..","...3333...",".........."] },
+  "statue": { "pal": {"1":"#7a7a8a","2":"#45454f","3":"#9a9aaa","R":"#ff4d4d"},
+    "rows": ["..3333..",".322223.",".3R22R3.",".322223.",".322223.","32222223","32222223","12222221","13222231","11111111"] },
+  "orochi": { "pal": {"G":"#3f9b54","D":"#1f4a2b","Y":"#ffe24a","R":"#ff4d4d","W":"#ffffff","B":"#7fd98f"},
+    "rows": [".G..GG..GG..G.","GGGGGGGGGGGGGG","GYYGGGYYGGGYYG","GGGGGGGGGGGGGG","GRRGGGGGGGGRRG",".RWR.GGGG.RWR.","GGGGGGGGGGGGGG",".GGGGGGGGGGGG.","..GGGBBBBGGG..","...GGBBBBGG...","..GGGGGGGGGG..",".GGG.GGGG.GGG.","GGG...GG...GGG","GG.........GG."] },
+  "snakehead": { "pal": {"G":"#3f9b54","Y":"#ffe24a","R":"#ff4d4d"},
+    "rows": ["..GGGGGG..",".GGGGGGGG.","GGYGGGGYGG","GGGGGGGGGG","GGGRRRRGGG",".GG.RR.GG.","..G.RR.G..","...GGGG..."] }
 };
 const REGION_FLOOR = ['f_castle', 'f_mtn', 'f_fort', 'f_swamp', 'f_forest'];
+// 地域ごとの装飾（柱＋床に置く小物プール）
+const DECOR = {
+  0: { pillar: 'pillar', items: ['chest', 'statue', 'bones', 'barrel', 'crate'] },
+  1: { pillar: 'rock',   items: ['rock', 'bones', 'chest', 'rock', 'bones'] },
+  2: { pillar: 'pillar', items: ['crate', 'barrel', 'crate', 'bones', 'chest'] },
+  3: { pillar: 'rock',   items: ['puddle', 'bones', 'bush', 'rock', 'puddle'] },
+  4: { pillar: 'bush',   items: ['bush', 'rock', 'bush', 'chest', 'bush'] },
+};
 const _sprCache = {};
 function makeSprite(key, px) {
   const ck = key + '@' + px;
@@ -287,14 +321,23 @@ function genMaze(cw, ch, seed) {
   })(0, 0);
   return g.map((r) => r.join(''));
 }
+const PUZZLE_OF = ['lights', 'sokoban', 'nim', 'mastermind', 'sphinx']; // 地域ごとの仕掛け（nim=大蛇／sphinx=ブラックボックス）
+const PUZZLE2_OF = ['ricochet', 'hex', 'liar', 'numberlink', null]; // 追加部屋（反射ロボ／ヘックス／嘘つき門番／数つなぎ）
 REGIONS.forEach((r, ri) => {
-  const grid = genMaze(4, 4, 917 + ri * 131);
+  const grid = genMaze(3, 3, 917 + ri * 131);
   const W = grid[0].length, H = grid.length;
   const cells = []; for (let y = 1; y < H; y += 2) for (let x = 1; x < W; x += 2) cells.push([x, y]);
   const ent = [1, 1], ex = [W - 2, H - 2];
   const cand = cells.filter((c) => !(c[0] === 1 && c[1] === 1) && !(c[0] === ex[0] && c[1] === ex[1]));
   shuffle(cand, mulberry32(5000 + ri));
-  r._maze = { grid, W, H, ent, ex, rooms: cand.slice(0, r.list.length) };
+  const K = r.list.length;
+  const pz = PUZZLE_OF[ri], pc = (pz && cand.length > K) ? cand[K] : null;
+  const pz2 = PUZZLE2_OF[ri], pc2 = (pz2 && cand.length > K + 1) ? cand[K + 1] : null;
+  r._maze = {
+    grid, W, H, ent, ex, rooms: cand.slice(0, K),
+    puzzle: pc ? { x: pc[0], y: pc[1], type: pz } : null,
+    puzzle2: pc2 ? { x: pc2[0], y: pc2[1], type: pz2 } : null,
+  };
 });
 
 // ===== 状態 =====
@@ -308,7 +351,7 @@ function newGame() {
     cleared: REGIONS.map((r) => r.list.map(() => false)),
     saved: 0, lost: 0, opened: false, finaleDone: false, descended: false,
     party: PARTY.slice(),
-    firedEnter: [], firedClear: [], forgot: {}, choices: {}, seenHint: {},
+    firedEnter: [], firedClear: [], forgot: {}, choices: {}, seenHint: {}, puzzleSolved: {},
     view: 'world', heroX: LOC[0].x, heroY: LOC[0].y + 1, dungeonRegion: -1, dx: 1, dy: 1,
   };
 }
@@ -456,6 +499,7 @@ function startJourney() { G.view = 'world'; G.heroX = LOC[0].x; G.heroY = LOC[0]
 function mkCell() { const c = document.createElement('div'); c.className = 'cell'; return c; }
 function tileBg(key) { return `<div class="bg">${makeSprite(key, 2)}</div>`; }
 function spriteOv(key) { return `<div class="ov">${makeSprite(key, 1.5)}</div>`; }
+function decorOv(key) { const sp = SPRITES[key]; const w = Math.max.apply(null, sp.rows.map((r) => r.length)), h = sp.rows.length; return `<div class="ov">${makeSprite(key, Math.max(1, Math.round(24 / Math.max(w, h))))}</div>`; }
 
 function renderWorld() {
   renderHud(); save();
@@ -519,61 +563,616 @@ function tryFinale() {
   else showMsgs(['まだ残党が残っている。村へは帰れない。'], renderWorld);
 }
 
+// 隣室への扉（迷路の通路が開いている方向）
+function doorsAt(ri, x, y) {
+  const g = REGIONS[ri]._maze.grid;
+  return { N: !!(g[y - 1] && g[y - 1][x] !== '#'), S: !!(g[y + 1] && g[y + 1][x] !== '#'),
+           W: g[y][x - 1] !== '#', E: g[y][x + 1] !== '#' };
+}
+// 部屋の装飾を決定的に配置（部屋ごとに変化）
+function roomDecor(ri) {
+  const cfg = DECOR[ri], rng = mulberry32(ri * 733 + G.dx * 37 + G.dy * 11);
+  const slots = shuffle([[1, 1], [7, 1], [1, 5], [7, 5], [2, 4], [6, 4]], rng);
+  const n = 2 + Math.floor(rng() * 3), map = {};
+  for (let i = 0; i < n; i++) map[slots[i][0] + ',' + slots[i][1]] = cfg.items[Math.floor(rng() * cfg.items.length)];
+  return { pillar: cfg.pillar, map };
+}
+// ダンジョンは「1部屋ずつ」全画面表示。スワイプ/矢印で隣の部屋へ。歩き回りはしない。
 function renderDungeon() {
   renderHud(); save();
-  const ri = G.dungeonRegion, reg = REGIONS[ri], mz = reg._maze, g0 = mz.grid;
-  const done = regionCleared(ri), floor = REGION_FLOOR[ri];
+  const ri = G.dungeonRegion, reg = REGIONS[ri], mz = reg._maze;
+  const floor = REGION_FLOOR[ri], done = regionCleared(ri), decor = roomDecor(ri);
+  const idx = roomAt(ri, G.dx, G.dy);
+  const isExit = G.dx === mz.ex[0] && G.dy === mz.ex[1];
+  const isEnt = G.dx === mz.ent[0] && G.dy === mz.ent[1];
+  const enemyHere = idx >= 0 && !G.cleared[ri][idx];
+  const here = (mz.puzzle && mz.puzzle.x === G.dx && mz.puzzle.y === G.dy) ? mz.puzzle
+    : (mz.puzzle2 && mz.puzzle2.x === G.dx && mz.puzzle2.y === G.dy) ? mz.puzzle2 : null;
+  const onPuzzle = !!here;
+  const pzDone = here ? !!G.puzzleSolved[here.type] : false;
+  const doors = doorsAt(ri, G.dx, G.dy);
+  const left = reg.list.filter((k, i) => !G.cleared[ri][i]).length;
+
   stage.innerHTML = '';
   const wrap = document.createElement('div'); wrap.className = 'mapwrap';
-  const ttl = document.createElement('div'); ttl.className = 'maptitle'; ttl.textContent = '🏛 ' + reg.name; wrap.appendChild(ttl);
-  const grid = document.createElement('div'); grid.className = 'mapgrid'; grid.style.gridTemplateColumns = `repeat(${mz.W},30px)`;
-  for (let y = 0; y < mz.H; y++) for (let x = 0; x < mz.W; x++) {
-    const wall = g0[y][x] === '#';
-    const cell = mkCell(); let label = '';
-    cell.innerHTML = tileBg(wall ? 'd_wall' : floor);
-    if (!wall) {
-      if (x === mz.ent[0] && y === mz.ent[1]) cell.innerHTML += '<div class="ov">🚪</div>';
-      else if (x === mz.ex[0] && y === mz.ex[1]) { cell.className += ' loc' + (done ? ' cur' : ' lock'); cell.innerHTML += '<div class="ov">🔻</div>'; label = '階段'; }
-      else {
-        const idx = roomAt(ri, x, y);
-        if (idx >= 0) {
-          if (G.cleared[ri][idx]) cell.innerHTML += '<div class="ov">✓</div>';
-          else { cell.className += ' loc cur'; cell.innerHTML += spriteOv(ENEMIES[reg.list[idx]].sprite); }
-        }
-      }
+  const ttl = document.createElement('div'); ttl.className = 'maptitle';
+  ttl.textContent = '🏛 ' + reg.name + (done ? '（殲滅済）' : `　残り${left}体`); wrap.appendChild(ttl);
+
+  const COLS = 9, ROWS = 7, CX = 4, DY = 3;
+  const grid = document.createElement('div'); grid.className = 'mapgrid'; grid.style.gridTemplateColumns = `repeat(${COLS},30px)`;
+  for (let ry = 0; ry < ROWS; ry++) for (let rx = 0; rx < COLS; rx++) {
+    const edge = ry === 0 || ry === ROWS - 1 || rx === 0 || rx === COLS - 1;
+    let dir = '';
+    if (ry === 0 && rx === CX && doors.N) dir = 'N';
+    else if (ry === ROWS - 1 && rx === CX && doors.S) dir = 'S';
+    else if (rx === 0 && ry === DY && doors.W) dir = 'W';
+    else if (rx === COLS - 1 && ry === DY && doors.E) dir = 'E';
+    const isDoor = !!dir;
+    const cell = mkCell();
+    cell.innerHTML = tileBg(edge && !isDoor ? 'd_wall' : floor);
+    if (ry === 0 && (rx === 2 || rx === COLS - 3)) cell.innerHTML += decorOv('torch'); // 壁の松明
+    if (isDoor) { cell.className += ' tap'; cell.innerHTML += `<div class="ov">${{ N: '⬆️', S: '⬇️', W: '⬅️', E: '➡️' }[dir]}</div>`; cell.onclick = () => moveRoom(dir); }
+    if (ry === 2 && (rx === 2 || rx === COLS - 3)) cell.innerHTML += decorOv(decor.pillar); // 柱
+    const dk = rx + ',' + ry;
+    if (decor.map[dk]) cell.innerHTML += decorOv(decor.map[dk]); // 小物
+    if (rx === CX && ry === 2) {
+      if (enemyHere) cell.innerHTML += `<div class="ov big">${makeSprite(ENEMIES[reg.list[idx]].sprite, 2.4)}</div>`;
+      else if (onPuzzle) cell.innerHTML += pzDone ? '<div class="ov">✓</div>' : (here.type === 'nim' ? spriteOv('orochi') : here.type === 'liar' ? spriteOv('soldier') : here.type === 'sphinx' ? decorOv('statue') : decorOv('chest'));
+      else if (isExit) cell.innerHTML += '<div class="ov big">🔻</div>';
+      else if (idx >= 0) cell.innerHTML += '<div class="ov">💀</div>';
+      else if (isEnt) cell.innerHTML += '<div class="ov">🚪</div>';
     }
-    if (label) cell.innerHTML += `<div class="lbl">${label}</div>`;
-    if (x === G.dx && y === G.dy) cell.innerHTML += spriteOv('hero');
-    if ((Math.abs(x - G.dx) + Math.abs(y - G.dy)) === 1 && !wall) { cell.className += ' tap'; cell.onclick = () => dungeonStep(x, y); }
+    if (rx === CX && ry === 5) cell.innerHTML += spriteOv('hero');
     grid.appendChild(cell);
   }
   wrap.appendChild(grid);
   const hint = document.createElement('div'); hint.className = 'maphint';
-  hint.innerHTML = done ? '残党は全滅した。🔻 階段から次へ進め。' : '迷路を進み、残党（敵）の部屋を見つけて殲滅せよ。';
+  hint.innerHTML = enemyHere ? '残党がいる！　戦うか、扉の方へスワイプして去るか。'
+    : (onPuzzle && !pzDone) ? (here.type === 'nim' ? '残党が多頭の大蛇とともに待ち構えている。頭脳戦を挑むか。' : here.type === 'liar' ? '残党の門番たちが立ちふさがる。誰の言葉が嘘か、見破るか。' : '封印された宝箱だ。挑戦して中身を頂くか？')
+    : (isExit && done) ? '🔻 階段がある。おりて次の地へ。'
+    : (done ? '残党は全滅した。🔻 階段（出口）を探せ。' : '扉（矢印）の方へスワイプ／タップで隣の部屋へ。');
   wrap.appendChild(hint);
   stage.appendChild(wrap);
-  mapMenu(true);
+  attachSwipe(wrap, moveRoom);
+
+  let ctx = null;
+  if (enemyHere) ctx = { fight: { key: reg.list[idx], idx } };
+  else if (onPuzzle && !pzDone) ctx = { puzzle: here.type };
+  else if (isExit && done) ctx = { descend: true };
+  mapMenu(true, ctx);
 }
-function dungeonStep(x, y) {
-  const ri = G.dungeonRegion, mz = REGIONS[ri]._maze;
-  if ((Math.abs(x - G.dx) + Math.abs(y - G.dy)) !== 1 || mz.grid[y][x] === '#') return;
-  G.dx = x; G.dy = y;
-  const idx = roomAt(ri, x, y);
-  if (idx >= 0 && !G.cleared[ri][idx]) { startBattle(REGIONS[ri].list[idx], ri, idx); return; }
-  if (x === mz.ex[0] && y === mz.ex[1]) {
-    if (!regionCleared(ri)) { renderDungeon(); showMsgs(['まだ残党がいる。階段は塞がれている。'], renderDungeon); return; }
-    if (!G.firedClear.includes(ri)) { G.firedClear.push(ri); return runEvents(REGIONS[ri].onClear, () => backToWorld(ri)); }
-    return backToWorld(ri);
-  }
+function moveRoom(dir) {
+  if (G.view !== 'dungeon') return;
+  const ri = G.dungeonRegion, g = REGIONS[ri]._maze.grid;
+  const d = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] }[dir]; if (!d) return;
+  const wx = G.dx + d[0], wy = G.dy + d[1];
+  if (!g[wy] || g[wy][wx] === '#') return; // 扉がない
+  G.dx += d[0] * 2; G.dy += d[1] * 2;
   renderDungeon();
 }
+function descendStairs() {
+  const ri = G.dungeonRegion;
+  if (!G.firedClear.includes(ri)) { G.firedClear.push(ri); return runEvents(REGIONS[ri].onClear, () => backToWorld(ri)); }
+  backToWorld(ri);
+}
+let _swipe = null;
+function attachSwipe(el, onDir) {
+  const start = (x, y) => { _swipe = { x, y }; };
+  const end = (x, y) => {
+    if (!_swipe) return; const dx = x - _swipe.x, dy = y - _swipe.y; _swipe = null;
+    if (Math.abs(dx) < 24 && Math.abs(dy) < 24) return;
+    onDir(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'E' : 'W') : (dy > 0 ? 'S' : 'N'));
+  };
+  el.addEventListener('touchstart', (e) => { const t = e.changedTouches[0]; start(t.clientX, t.clientY); }, { passive: true });
+  el.addEventListener('touchend', (e) => { const t = e.changedTouches[0]; end(t.clientX, t.clientY); }, { passive: true });
+  el.addEventListener('mousedown', (e) => start(e.clientX, e.clientY));
+  el.addEventListener('mouseup', (e) => end(e.clientX, e.clientY));
+}
 
-function mapMenu(inDungeon) {
+// ===== パズル部屋（任意・宝箱）=====
+const PUZZLE_NAME = { nim: '大蛇', lights: '消えずの篝火', sokoban: '鉄箱の倉', mastermind: '封印の錠前', sphinx: 'スフィンクスの匣', liar: '門番の問答', ricochet: '滑る魔像', hex: 'ヘックス', numberlink: '数つなぎ' };
+let PZ = null;
+function startPuzzle(type, ri) {
+  if (type === 'nim') return orochiIntro(ri); // ニムは大蛇退治イベント
+  PZ = { type, ri };
+  if (type === 'lights') lightsInit();
+  else if (type === 'sokoban') sokoInit();
+  else if (type === 'sphinx') bbInit();
+  else if (type === 'liar') liarInit();
+  else if (type === 'ricochet') ricoInit();
+  else if (type === 'hex') hexInit();
+  else if (type === 'numberlink') nlInit();
+  else mmInit();
+}
+function puzzleGrid(cols) { const g = document.createElement('div'); g.className = 'mapgrid'; g.style.gridTemplateColumns = `repeat(${cols},30px)`; g.style.margin = '4px auto'; return g; }
+function puzzleFrame(title, body, controls, sub, onSwipe) {
+  renderHud();
+  stage.innerHTML = '';
+  const wrap = document.createElement('div'); wrap.className = 'mapwrap';
+  const t = document.createElement('div'); t.className = 'maptitle'; t.textContent = '🧩 ' + title; wrap.appendChild(t);
+  wrap.appendChild(body);
+  const h = document.createElement('div'); h.className = 'maphint'; h.innerHTML = sub; wrap.appendChild(h);
+  stage.appendChild(wrap);
+  if (onSwipe) attachSwipe(body, onSwipe);
+  setCmds(controls || [{ label: '↩ あきらめる', wide: true, fn: puzzleQuit }], true);
+}
+function puzzleQuit() { PZ = null; renderDungeon(); }
+function puzzleSolved() {
+  G.puzzleSolved[PZ.type] = true; G.herbs += 2; PZ = null; renderHud(); save();
+  showMsgs(['🎉 封印が解けた！　宝箱が開く。', 'やくそうを2つ手に入れた。'], () => renderDungeon());
+}
+// --- 残党の多頭大蛇（中身はニム/石取り）: 残党との頭脳戦。勝てば撃退、負ければ返り討ち ---
+function orochiIntro(ri) {
+  PZ = { type: 'nim', ri };
+  const necks = [3, 4, 5];
+  showMsgs([
+    '行く手をふさいだのは、魔王軍の残党と——彼らが飼い慣らした多頭の大蛇だった。',
+    `残党の頭目「我らの愛蛇と、知恵比べといこうか。${necks.length}本の首、斬れるのは一手につき一本のみ」`,
+    '頭目「そちらが斬れば、こちらも愛蛇に首を喰い切らせる。交互だ」',
+    '最後の一節を落とした側が、この頭脳戦を制する。先手はこちらに譲られた。',
+  ], () => {
+    setCmds([
+      { label: '🐍 頭脳戦に応じる', primary: true, wide: true, fn: () => { PZ = { type: 'nim', ri, piles: necks.slice() }; orochiRender(''); } },
+      { label: '引き返す', wide: true, fn: () => { PZ = null; renderDungeon(); } },
+    ], true);
+  });
+}
+function orochiRender(msg) {
+  const body = document.createElement('div');
+  PZ.piles.forEach((p, i) => {
+    const row = puzzleGrid(Math.max(1, p));
+    for (let j = 0; j < p; j++) { const c = mkCell(); c.innerHTML = decorOv('snakehead'); c.className += ' tap'; const take = p - j; c.onclick = () => orochiCut(i, take); row.appendChild(c); }
+    body.appendChild(row);
+  });
+  puzzleFrame('残党の大蛇 — 頭脳戦', body, [], (msg ? msg + '<br>' : '') + '首をタップ＝その首から先の節をまとめて斬る。<b>最後の一節を落とした方が勝ち</b>。（退けない）');
+}
+function nimOver() { return PZ.piles.every((p) => p === 0); }
+function orochiCut(i, n) {
+  PZ.piles[i] -= n;
+  if (nimOver()) return orochiWin();
+  const p = PZ.piles; let x = 0; p.forEach((v) => x ^= v); let moved = false;
+  if (x !== 0) { for (let k = 0; k < p.length; k++) { const t = p[k] ^ x; if (t < p[k]) { p[k] = t; moved = true; break; } } }
+  if (!moved) { let mi = 0; p.forEach((v, k) => { if (v > p[mi]) mi = k; }); if (p[mi] > 0) p[mi]--; }
+  if (nimOver()) return orochiLose();
+  orochiRender('頭目の合図で、大蛇が自らの首を喰い切った。あなたの番。');
+}
+function orochiWin() {
+  const before = lvOf(); G.puzzleSolved[PZ.type] = true; PZ = null;
+  G.wear = Math.max(0, G.wear - 4); G.herbs += 2;
+  const after = lvOf(); renderHud(); save();
+  showMsgs([
+    '最後の首が地に落ちた。大蛇は力尽き、頭目は舌打ちして退いていく。',
+    after > before ? `頭脳戦を制した昂りで、体に力がみなぎる。レベルが ${after} に回復した！` : '頭脳戦を制し、体に力がみなぎった。',
+    '残党が遺した荷から、やくそうを2つ見つけた。',
+  ], () => renderDungeon());
+}
+function orochiLose() {
+  const before = lvOf(); G.puzzleSolved[PZ.type] = true; PZ = null;
+  G.wear += 4;
+  const s = stats(); G.hp = Math.min(G.hp, s.maxHp); G.mp = Math.min(G.mp, s.maxMp);
+  const after = lvOf(); renderHud(); save();
+  showMsgs([
+    '最後の首を喰い切ったのは、頭目に操られた大蛇のほうだった。',
+    `頭目「読み負けたな」——振り抜かれた尾に打ち据えられ、英雄の力が削れる。レベルが ${after} に下がった……`,
+    '（被弾と同じだ。失った強さは戻らない）',
+  ], () => renderDungeon());
+}
+// --- スフィンクスの匣（ブラックボックス）: 隠れた3つの石を光線で推理する ---
+const BB_N = 6;
+function bbPorts() {
+  const ps = [];
+  for (let i = 0; i < BB_N; i++) { ps.push([i, -1]); ps.push([i, BB_N]); ps.push([-1, i]); ps.push([BB_N, i]); }
+  return ps;
+}
+function bbTrace(atoms, sx, sy) {
+  // sx,sy は外周ポート。最初の進行方向は盤内向き。物理的に可逆な光線追跡。
+  let x = sx, y = sy;
+  let dx = sx < 0 ? 1 : sx >= BB_N ? -1 : 0;
+  let dy = sy < 0 ? 1 : sy >= BB_N ? -1 : 0;
+  let first = true;
+  for (let guard = 0; guard < 5000; guard++) {
+    const nx = x + dx, ny = y + dy;
+    const tlx = dy, tly = -dx, trx = -dy, trry = dx; // 左折・右折ベクトル
+    const aL = atoms.has((nx + tlx) + ',' + (ny + tly)); // 左前角
+    const aR = atoms.has((nx + trx) + ',' + (ny + trry)); // 右前角
+    if (first) { if (aL || aR) return sx + ',' + sy; first = false; } // 入口で角に石→反射(R)
+    if (atoms.has(nx + ',' + ny)) return 'H'; // 正面に石→吸収(H)
+    if (aL && aR) { dx = -dx; dy = -dy; } // 両前角→反転
+    else if (aL) { dx = trx; dy = trry; } // 左前角→右へそれる
+    else if (aR) { dx = tlx; dy = tly; } // 右前角→左へそれる
+    else {
+      x = nx; y = ny;
+      if (x < 0 || x >= BB_N || y < 0 || y >= BB_N) return x + ',' + y; // 外周へ脱出
+    }
+  }
+  return 'H';
+}
+function bbSig(atoms) { const m = {}; bbPorts().forEach((p) => { m[p[0] + ',' + p[1]] = bbTrace(atoms, p[0], p[1]); }); return m; }
+function bbInit() {
+  PZ = { type: 'sphinx', ri: PZ ? PZ.ri : G.dungeonRegion };
+  const rng = mulberry32(PZ.ri * 1777 + 29);
+  const secret = new Set();
+  while (secret.size < 3) { const x = Math.floor(rng() * BB_N), y = Math.floor(rng() * BB_N); secret.add(x + ',' + y); }
+  PZ.secret = secret; PZ.sig = bbSig(secret);
+  PZ.fired = {}; PZ.label = 1; PZ.guess = new Set();
+  bbRender('');
+}
+function bbFire(px, py) {
+  const k = px + ',' + py; if (PZ.fired[k]) return;
+  const res = PZ.sig[k];
+  if (res === 'H') PZ.fired[k] = 'H';
+  else if (res === k) PZ.fired[k] = 'R';
+  else { const n = PZ.label++; PZ.fired[k] = n; PZ.fired[res] = n; }
+  bbRender('');
+}
+function bbToggleGuess(x, y) {
+  const k = x + ',' + y;
+  if (PZ.guess.has(k)) PZ.guess.delete(k);
+  else { if (PZ.guess.size >= 3) return bbRender('石は3つまで。'); PZ.guess.add(k); }
+  bbRender('');
+}
+function bbPortLabel(k) {
+  const v = PZ.fired[k]; if (v === undefined) return null;
+  if (v === 'H') return '<div class="ov" style="color:#ff5a5a;font-weight:bold">✕</div>';
+  if (v === 'R') return '<div class="ov" style="color:#7fd0ff;font-weight:bold">R</div>';
+  const hue = (v * 67) % 360;
+  return `<div class="ov" style="color:hsl(${hue},90%,70%);font-weight:bold">${v}</div>`;
+}
+function bbRender(msg) {
+  const N = BB_N, body = puzzleGrid(N + 2);
+  for (let gy = -1; gy <= N; gy++) for (let gx = -1; gx <= N; gx++) {
+    const c = mkCell();
+    const corner = (gx < 0 || gx >= N) && (gy < 0 || gy >= N);
+    const edge = !corner && (gx < 0 || gx >= N || gy < 0 || gy >= N);
+    const inside = gx >= 0 && gx < N && gy >= 0 && gy < N;
+    if (corner) { c.innerHTML = '<div class="ov" style="opacity:.15">·</div>'; body.appendChild(c); continue; }
+    if (edge) {
+      const k = gx + ',' + gy, lbl = bbPortLabel(k);
+      c.innerHTML = tileBg('d_wall');
+      if (lbl) c.innerHTML += lbl; else { c.innerHTML += '<div class="ov" style="opacity:.5">◦</div>'; c.className += ' tap'; c.onclick = () => bbFire(gx, gy); }
+      body.appendChild(c); continue;
+    }
+    if (inside) {
+      const k = gx + ',' + gy; c.innerHTML = tileBg('f_fort'); c.className += ' tap';
+      if (PZ.guess.has(k)) c.innerHTML += '<div class="ov" style="color:#ffd23b;font-size:20px">●</div>';
+      c.onclick = () => bbToggleGuess(gx, gy);
+      body.appendChild(c);
+    }
+  }
+  puzzleFrame('スフィンクスの匣 — 光の推理', body, [
+    { label: '🔮 封を解く', primary: true, wide: true, fn: bbSubmit }, { label: '↩ あきらめる', wide: true, fn: puzzleQuit },
+  ], (msg ? msg + '<br>' : '') + `外周(◦)をタップ＝光を撃ち込む。✕=吸収／R=跳ね返り／同じ番号=入口と出口。内側をタップで石(●)を<b>3つ</b>置き、配置を当てろ。`);
+}
+function bbSubmit() {
+  if (PZ.guess.size < 3) return bbRender('石を3つ置いてから。');
+  const gs = bbSig(PZ.guess), ss = PZ.sig;
+  const ok = Object.keys(ss).every((k) => String(gs[k]) === String(ss[k]));
+  if (ok) return puzzleSolved();
+  bbRender('観測と合わない配置がある……（撃ち足りないかも）');
+}
+// --- 門番の問答（ナイト＆ネイブ）: 正直者は必ず本当、嘘つきは必ず嘘。全員の正体を当てる ---
+function liarEval(st, A) {
+  switch (st.kind) {
+    case 'is': return A[st.who] === st.honest;
+    case 'same': return A[st.a] === A[st.b];
+    case 'diff': return A[st.a] !== A[st.b];
+    case 'count': return A.reduce((c, v) => c + (v ? 0 : 1), 0) === st.n;
+  }
+}
+function liarText(st, names) {
+  switch (st.kind) {
+    case 'is': return `「${names[st.who]}は${st.honest ? '正直者' : '嘘つき'}だ」`;
+    case 'same': return `「${names[st.a]}と${names[st.b]}は同じ類だ」`;
+    case 'diff': return `「${names[st.a]}と${names[st.b]}は違う類だ」`;
+    case 'count': return `「ここに嘘つきはちょうど${st.n}人いる」`;
+  }
+}
+function liarGen(seed) {
+  const rng = mulberry32(seed), N = 3, names = ['赤の門番', '青の門番', '黄の門番'];
+  for (let attempt = 0; attempt < 600; attempt++) {
+    const S = []; for (let i = 0; i < N; i++) S.push(rng() < 0.5);
+    const liars = S.reduce((c, v) => c + (v ? 0 : 1), 0);
+    if (liars === 0 || liars === N) continue; // 全員同種は除外
+    const stmts = [];
+    for (let i = 0; i < N; i++) {
+      const want = S[i], r = rng(); let st;
+      if (r < 0.45) { let who; do { who = Math.floor(rng() * N); } while (who === i); st = { kind: 'is', who, honest: (S[who] === want) }; }
+      else if (r < 0.8) { let a = Math.floor(rng() * N), b; do { b = Math.floor(rng() * N); } while (b === a); st = { kind: (S[a] === S[b]) === want ? 'same' : 'diff', a, b }; }
+      else { let n = want ? liars : (liars + 1) % (N + 1); st = { kind: 'count', n }; }
+      stmts.push(st);
+    }
+    let sols = 0;
+    for (let m = 0; m < (1 << N); m++) {
+      const A = []; for (let i = 0; i < N; i++) A.push(!!(m & (1 << i)));
+      if (stmts.every((st, i) => liarEval(st, A) === A[i])) sols++;
+    }
+    if (sols === 1) return { N, names, S, stmts };
+  }
+  // フォールバック（一意解を持つ固定問題）
+  return { N: 3, names: ['赤の門番', '青の門番', '黄の門番'], S: [true, false, true],
+    stmts: [{ kind: 'is', who: 1, honest: false }, { kind: 'diff', a: 0, b: 2 }, { kind: 'count', n: 1 }] };
+}
+function liarInit() {
+  const d = liarGen(PZ.ri * 1234 + 57);
+  PZ.N = d.N; PZ.names = d.names; PZ.S = d.S; PZ.stmts = d.stmts; PZ.guess = d.S.map(() => true);
+  liarRender('');
+}
+function liarRender(msg) {
+  const body = document.createElement('div');
+  for (let i = 0; i < PZ.N; i++) {
+    const g = PZ.guess[i], card = document.createElement('div');
+    card.className = 'maphint tap'; card.style.cssText = 'margin:6px auto;max-width:340px;text-align:left;display:flex;align-items:center;gap:8px';
+    card.innerHTML = `<span style="flex:0 0 auto">${makeSprite('soldier', 1.5)}</span><span><b>${PZ.names[i]}</b>　${liarText(PZ.stmts[i], PZ.names)}<br><span style="color:${g ? '#7fd98f' : '#ff8a8a'};font-weight:bold">▷ ${g ? '正直者' : '嘘つき'}</span></span>`;
+    card.onclick = () => { PZ.guess[i] = !PZ.guess[i]; liarRender(msg); };
+    body.appendChild(card);
+  }
+  puzzleFrame('門番の問答 — 嘘を見破れ', body, [
+    { label: '🗝 見破る', primary: true, wide: true, fn: liarSubmit }, { label: '↩ あきらめる', wide: true, fn: puzzleQuit },
+  ], (msg ? msg + '<br>' : '') + '各門番をタップ＝<b>正直者⇄嘘つき</b>を切替。正直者は必ず本当を、嘘つきは必ず嘘を言う。全員の正体を当てろ。');
+}
+function liarSubmit() {
+  if (PZ.guess.every((v, i) => v === PZ.S[i])) return puzzleSolved();
+  liarRender('証言のどこかと矛盾している……もう一度。');
+}
+// --- 反射ロボ: 障害物に当たるまで滑り続ける魔像を、祭壇へ最少手で導く ---
+function ricoSlide(blocked, x, y, dx, dy, N) {
+  while (true) { const nx = x + dx, ny = y + dy; if (nx < 0 || nx >= N || ny < 0 || ny >= N) break; if (blocked.has(nx + ',' + ny)) break; x = nx; y = ny; }
+  return [x, y];
+}
+function ricoBFS(blocked, start, N) {
+  const dist = { [start[0] + ',' + start[1]]: 0 }, q = [start];
+  while (q.length) { const [x, y] = q.shift(), d = dist[x + ',' + y];
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const [nx, ny] = ricoSlide(blocked, x, y, dx, dy, N), k = nx + ',' + ny; if (!(k in dist)) { dist[k] = d + 1; q.push([nx, ny]); } }
+  }
+  return dist;
+}
+function ricoGen(seed) {
+  const N = 7;
+  for (let a = 0; a < 300; a++) {
+    const rng = mulberry32(seed + a * 101), blocked = new Set(), nb = 6 + Math.floor(rng() * 4);
+    while (blocked.size < nb) { const x = Math.floor(rng() * N), y = Math.floor(rng() * N); if (x === 0 && y === 0) continue; blocked.add(x + ',' + y); }
+    const dist = ricoBFS(blocked, [0, 0], N);
+    const cands = Object.keys(dist).filter((k) => dist[k] >= 4 && !blocked.has(k));
+    if (!cands.length) continue;
+    cands.sort((p, q) => dist[q] - dist[p]);
+    const t = cands[Math.floor(rng() * Math.min(3, cands.length))].split(',').map(Number);
+    return { N, blocked: [...blocked], start: [0, 0], target: t, par: dist[t[0] + ',' + t[1]] };
+  }
+  return { N: 7, blocked: ['3,3', '3,1', '1,3', '5,3', '3,5', '5,5'], start: [0, 0], target: [6, 6], par: 4 };
+}
+function ricoInit() {
+  const d = ricoGen(PZ.ri * 2027 + 11);
+  PZ.N = d.N; PZ.blocked = new Set(d.blocked); PZ.start = d.start; PZ.target = d.target; PZ.par = d.par;
+  PZ.x = d.start[0]; PZ.y = d.start[1]; PZ.moves = 0; ricoRender('');
+}
+function ricoMove(dir) {
+  if (!PZ || PZ.type !== 'ricochet') return;
+  const dv = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] }[dir]; if (!dv) return;
+  const [nx, ny] = ricoSlide(PZ.blocked, PZ.x, PZ.y, dv[0], dv[1], PZ.N);
+  if (nx === PZ.x && ny === PZ.y) return;
+  PZ.x = nx; PZ.y = ny; PZ.moves++;
+  if (PZ.x === PZ.target[0] && PZ.y === PZ.target[1]) return puzzleSolved();
+  ricoRender('');
+}
+function ricoReset() { PZ.x = PZ.start[0]; PZ.y = PZ.start[1]; PZ.moves = 0; ricoRender(''); }
+function ricoRender(msg) {
+  const N = PZ.N, body = puzzleGrid(N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const k = x + ',' + y, wall = PZ.blocked.has(k), c = mkCell();
+    c.innerHTML = tileBg(wall ? 'd_wall' : 'f_castle');
+    if (wall) c.innerHTML += decorOv('rock');
+    else if (x === PZ.target[0] && y === PZ.target[1]) c.innerHTML += '<div class="ov" style="color:#ffd23b;font-size:22px">◎</div>';
+    if (x === PZ.x && y === PZ.y) c.innerHTML += spriteOv('golem');
+    body.appendChild(c);
+  }
+  puzzleFrame('滑る魔像 — 祭壇へ導け', body, [
+    { label: '←', fn: () => ricoMove('W') }, { label: '→', fn: () => ricoMove('E') },
+    { label: '↑', fn: () => ricoMove('N') }, { label: '↓', fn: () => ricoMove('S') },
+    { label: '↺ 戻す', fn: ricoReset }, { label: '↩ あきらめる', fn: puzzleQuit },
+  ], (msg ? msg + '<br>' : '') + `魔像は壁か岩に当たるまで滑り続ける。◎の祭壇へ。最短 <b>${PZ.par}</b> 手（今 ${PZ.moves} 手）。スワイプ／矢印で。`, ricoMove);
+}
+// --- ヘックス: 自分の色で盤の端から端まで繋げ（残党とのAI対戦・引き分けなし）---
+const HEX_N = 5;
+function hexNbrs(r, c) { return [[r, c - 1], [r, c + 1], [r - 1, c], [r + 1, c], [r - 1, c + 1], [r + 1, c - 1]].filter(([y, x]) => y >= 0 && y < HEX_N && x >= 0 && x < HEX_N); }
+function hexConnect(board, color) { // 1=青(上下), 2=赤(左右)
+  const N = HEX_N, seen = new Set(), q = [];
+  for (let i = 0; i < N; i++) { if (color === 1 && board[i] === 1) { q.push([0, i]); seen.add('0,' + i); } else if (color === 2 && board[i * N] === 2) { q.push([i, 0]); seen.add(i + ',0'); } }
+  while (q.length) { const [r, c] = q.pop();
+    if (color === 1 && r === N - 1) return true; if (color === 2 && c === N - 1) return true;
+    for (const [nr, nc] of hexNbrs(r, c)) { const k = nr + ',' + nc; if (!seen.has(k) && board[nr * N + nc] === color) { seen.add(k); q.push([nr, nc]); } }
+  }
+  return false;
+}
+function hexAIMove(board) {
+  const N = HEX_N, empties = []; for (let i = 0; i < N * N; i++) if (board[i] === 0) empties.push(i);
+  if (!empties.length) return -1;
+  for (const mv of empties) { const b = board.slice(); b[mv] = 2; if (hexConnect(b, 2)) return mv; } // 勝てる手
+  for (const mv of empties) { const b = board.slice(); b[mv] = 1; if (hexConnect(b, 1)) return mv; } // 相手の勝ちを防ぐ
+  const K = 80; let best = empties[0], bestW = -1;
+  for (const mv of empties) {
+    let wins = 0;
+    for (let t = 0; t < K; t++) { const b = board.slice(); b[mv] = 2; for (const e of empties) if (e !== mv) b[e] = Math.random() < 0.5 ? 1 : 2; if (hexConnect(b, 2)) wins++; }
+    if (wins > bestW) { bestW = wins; best = mv; }
+  }
+  return best;
+}
+function hexInit() { PZ.board = new Array(HEX_N * HEX_N).fill(0); PZ.over = false; hexRender('あなたは先手・青。上と下を繋げば勝ち。'); }
+function hexPlace(i) {
+  if (!PZ || PZ.type !== 'hex' || PZ.over || PZ.board[i] !== 0) return;
+  PZ.board[i] = 1;
+  if (hexConnect(PZ.board, 1)) { PZ.over = true; return puzzleSolved(); }
+  const mv = hexAIMove(PZ.board);
+  if (mv >= 0) { PZ.board[mv] = 2; if (hexConnect(PZ.board, 2)) { PZ.over = true; return hexRender('残党に左右を繋がれた……（やり直せる）', true); } }
+  hexRender('あなたの番・青。');
+}
+function hexRender(msg, lost) {
+  const N = HEX_N, body = document.createElement('div');
+  for (let r = 0; r < N; r++) {
+    const row = document.createElement('div'); row.className = 'mapgrid'; row.style.gridTemplateColumns = `repeat(${N},30px)`; row.style.marginLeft = (r * 15) + 'px';
+    for (let c = 0; c < N; c++) {
+      const v = PZ.board[r * N + c], cell = mkCell();
+      cell.innerHTML = tileBg('f_mtn');
+      if (r === 0 || r === N - 1) cell.innerHTML += '<div class="ov" style="box-shadow:inset 0 0 0 2px #5aa0ff"></div>';
+      if (c === 0 || c === N - 1) cell.innerHTML += '<div class="ov" style="box-shadow:inset 0 0 0 2px #ff6a6a"></div>';
+      if (v) cell.innerHTML += `<div class="ov" style="color:${v === 1 ? '#5aa0ff' : '#ff6a6a'};font-size:22px">●</div>`;
+      else if (!lost) { cell.className += ' tap'; cell.onclick = () => hexPlace(r * N + c); }
+      row.appendChild(cell);
+    }
+    body.appendChild(row);
+  }
+  const ctrls = lost ? [{ label: '↺ やり直す', primary: true, wide: true, fn: hexInit }, { label: '↩ あきらめる', wide: true, fn: puzzleQuit }]
+    : [{ label: '↩ あきらめる', wide: true, fn: puzzleQuit }];
+  puzzleFrame('ヘックス — 上下をつなげ', body, ctrls, (msg ? msg + '<br>' : '') + '青=あなた（上下を繋げば勝ち）／赤=残党（左右）。空きマスをタップで青石を置く。引き分けは無い。');
+}
+// --- 数つなぎ（ナンバーリンク）: 同じ番号を交差せず結び、全マスを埋める ---
+const NL_COLORS = ['#ff6a6a', '#5aa0ff', '#7fd98f', '#ffd23b', '#c08aff', '#ff9a4a'];
+const NL_LEVEL = { N: 5, pairs: [[[0, 0], [4, 0]], [[0, 4], [4, 4]], [[0, 1], [0, 3]], [[4, 1], [4, 3]], [[1, 1], [3, 3]]] };
+function nlInit() { PZ.N = NL_LEVEL.N; PZ.pairs = NL_LEVEL.pairs.map((p) => [p[0].slice(), p[1].slice()]); PZ.paths = PZ.pairs.map((p) => [p[0].slice()]); PZ.active = -1; nlRender(''); }
+function nlEndpoint(r, c) { for (let i = 0; i < PZ.pairs.length; i++) { const p = PZ.pairs[i]; if ((p[0][0] === r && p[0][1] === c) || (p[1][0] === r && p[1][1] === c)) return i; } return -1; }
+function nlPathOwner(r, c) { for (let i = 0; i < PZ.paths.length; i++) if (PZ.paths[i].some((p) => p[0] === r && p[1] === c)) return i; return -1; }
+function nlGoal(i) { const s = PZ.paths[i][0], e0 = PZ.pairs[i][0], e1 = PZ.pairs[i][1]; return (s[0] === e0[0] && s[1] === e0[1]) ? e1 : e0; }
+function nlTap(r, c) {
+  const epi = nlEndpoint(r, c);
+  if (epi >= 0 && PZ.active !== epi) { PZ.active = epi; PZ.paths[epi] = [[r, c]]; return nlRender(''); }
+  if (PZ.active < 0) return;
+  const path = PZ.paths[PZ.active], idx = path.findIndex((p) => p[0] === r && p[1] === c);
+  if (idx >= 0) { PZ.paths[PZ.active] = path.slice(0, idx + 1); return nlAfter(); }
+  const head = path[path.length - 1];
+  if (Math.abs(head[0] - r) + Math.abs(head[1] - c) !== 1) return;
+  const oe = nlEndpoint(r, c), op = nlPathOwner(r, c);
+  if (oe >= 0 && oe !== PZ.active) return; if (op >= 0 && op !== PZ.active) return;
+  path.push([r, c]);
+  const g = nlGoal(PZ.active); if (r === g[0] && c === g[1]) PZ.active = -1;
+  nlAfter();
+}
+function nlAfter() { if (nlWin()) return puzzleSolved(); nlRender(''); }
+function nlWin() {
+  const used = new Set(); let count = 0;
+  for (let i = 0; i < PZ.pairs.length; i++) {
+    const path = PZ.paths[i]; if (path.length < 2) return false;
+    const a = path[0], b = path[path.length - 1], e0 = PZ.pairs[i][0], e1 = PZ.pairs[i][1];
+    if (!((a[0] === e0[0] && a[1] === e0[1] && b[0] === e1[0] && b[1] === e1[1]) || (a[0] === e1[0] && a[1] === e1[1] && b[0] === e0[0] && b[1] === e0[1]))) return false;
+    for (let k = 0; k < path.length; k++) { if (k > 0 && Math.abs(path[k][0] - path[k - 1][0]) + Math.abs(path[k][1] - path[k - 1][1]) !== 1) return false; const key = path[k][0] + ',' + path[k][1]; if (used.has(key)) return false; used.add(key); count++; }
+  }
+  return count === PZ.N * PZ.N;
+}
+function nlRender(msg) {
+  const N = PZ.N, body = puzzleGrid(N);
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const cell = mkCell(); cell.innerHTML = tileBg('f_swamp'); cell.className += ' tap';
+    const pi = nlPathOwner(r, c), epi = nlEndpoint(r, c);
+    if (pi >= 0) cell.innerHTML += `<div class="ov" style="background:${NL_COLORS[pi]}77;border-radius:5px;width:74%;height:74%;margin:auto"></div>`;
+    if (epi >= 0) cell.innerHTML += `<div class="ov" style="color:${NL_COLORS[epi]};font-weight:bold;font-size:18px;-webkit-text-stroke:1px #1a1c28">${epi + 1}</div>`;
+    cell.onclick = () => nlTap(r, c);
+    body.appendChild(cell);
+  }
+  puzzleFrame('数つなぎ — 印を結べ', body, [
+    { label: '↺ 全消し', fn: nlInit }, { label: '↩ あきらめる', fn: puzzleQuit },
+  ], (msg ? msg + '<br>' : '') + '同じ番号をタップで選び、隣マスを順にタップして線を伸ばす。全ペアを交差せず結び、<b>全マスを埋めろ</b>。');
+}
+// --- 消えずの篝火（全部消す）---
+function lightsToggle(i) {
+  const n = PZ.n, x = i % n, y = (i / n) | 0;
+  [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].forEach((d) => { const xx = x + d[0], yy = y + d[1]; if (xx >= 0 && xx < n && yy >= 0 && yy < n) PZ.grid[yy * n + xx] = !PZ.grid[yy * n + xx]; });
+}
+function lightsInit() {
+  PZ.n = 5; PZ.grid = new Array(25).fill(false);
+  const rng = mulberry32(PZ.ri * 999 + 7);
+  for (let k = 0; k < 4 + Math.floor(rng() * 3); k++) lightsToggle(Math.floor(rng() * 25));
+  while (PZ.grid.every((v) => !v)) lightsToggle(Math.floor(rng() * 25));
+  lightsRender();
+}
+function lightsRender() {
+  const body = puzzleGrid(PZ.n);
+  for (let i = 0; i < PZ.n * PZ.n; i++) {
+    const c = mkCell(); c.innerHTML = tileBg('f_fort'); c.className += ' tap';
+    c.innerHTML += PZ.grid[i] ? decorOv('torch') : '<div class="ov" style="opacity:.25">🔥</div>';
+    c.onclick = () => lightsPress(i); body.appendChild(c);
+  }
+  puzzleFrame('消えずの篝火 — すべて消せ', body, null, 'マスをタップ＝そのマスと上下左右が反転。<b>すべて消せ</b>。');
+}
+function lightsPress(i) { lightsToggle(i); if (PZ.grid.every((v) => !v)) return puzzleSolved(); lightsRender(); }
+// --- 鉄箱の倉（箱押し）---
+const SOKO_LEVEL = ['#######', '#  .  #', '#  $  #', '#.$@$.#', '#  $  #', '#  .  #', '#######'];
+function sokoInit() {
+  const L = SOKO_LEVEL; PZ.W = L[0].length; PZ.H = L.length;
+  PZ.walls = new Set(); PZ.targets = new Set(); PZ.boxes = new Set();
+  for (let y = 0; y < L.length; y++) for (let x = 0; x < L[y].length; x++) {
+    const ch = L[y][x], k = x + ',' + y;
+    if (ch === '#') PZ.walls.add(k);
+    if (ch === '.' || ch === '*' || ch === '+') PZ.targets.add(k);
+    if (ch === '$' || ch === '*') PZ.boxes.add(k);
+    if (ch === '@' || ch === '+') { PZ.px = x; PZ.py = y; }
+  }
+  sokoRender();
+}
+function sokoMove(dir) {
+  if (!PZ || PZ.type !== 'sokoban') return;
+  const d = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] }[dir]; if (!d) return;
+  const nx = PZ.px + d[0], ny = PZ.py + d[1], nk = nx + ',' + ny;
+  if (PZ.walls.has(nk)) return;
+  if (PZ.boxes.has(nk)) { const bx = nx + d[0], by = ny + d[1], bk = bx + ',' + by; if (PZ.walls.has(bk) || PZ.boxes.has(bk)) return; PZ.boxes.delete(nk); PZ.boxes.add(bk); }
+  PZ.px = nx; PZ.py = ny;
+  if ([...PZ.targets].every((t) => PZ.boxes.has(t))) return puzzleSolved();
+  sokoRender();
+}
+function sokoRender() {
+  const body = puzzleGrid(PZ.W);
+  for (let y = 0; y < PZ.H; y++) for (let x = 0; x < PZ.W; x++) {
+    const k = x + ',' + y, wall = PZ.walls.has(k), c = mkCell();
+    c.innerHTML = tileBg(wall ? 'd_wall' : 'f_fort');
+    if (PZ.targets.has(k) && !PZ.boxes.has(k)) c.innerHTML += '<div class="ov" style="color:#ffd23b;font-size:18px">◎</div>';
+    if (PZ.boxes.has(k)) c.innerHTML += decorOv(PZ.targets.has(k) ? 'chest' : 'crate');
+    if (x === PZ.px && y === PZ.py) c.innerHTML += spriteOv('hero');
+    if (!wall && (Math.abs(x - PZ.px) + Math.abs(y - PZ.py)) === 1) { c.className += ' tap'; const dir = x > PZ.px ? 'E' : x < PZ.px ? 'W' : y > PZ.py ? 'S' : 'N'; c.onclick = () => sokoMove(dir); }
+    body.appendChild(c);
+  }
+  puzzleFrame('鉄箱の倉 — 箱を運べ', body, [
+    { label: '←', fn: () => sokoMove('W') }, { label: '→', fn: () => sokoMove('E') },
+    { label: '↑', fn: () => sokoMove('N') }, { label: '↓', fn: () => sokoMove('S') },
+    { label: '↺ やり直す', fn: sokoInit }, { label: '↩ あきらめる', fn: puzzleQuit },
+  ], '箱を ◎ 印に全部のせる。スワイプ／矢印／隣マスタップで移動。', sokoMove);
+}
+// --- 数当て（マスターマインド / 錠前）---
+function mmInit() {
+  const rng = mulberry32(PZ.ri * 321 + 13); PZ.code = [];
+  for (let i = 0; i < 4; i++) PZ.code.push(1 + Math.floor(rng() * 6));
+  PZ.guess = [1, 1, 1, 1]; PZ.history = []; PZ.max = 10; mmRender('');
+}
+function mmFeedback(g, code) {
+  let hit = 0, blow = 0; const c = code.slice(), gg = g.slice();
+  for (let i = 0; i < 4; i++) if (gg[i] === c[i]) { hit++; gg[i] = -1; c[i] = -2; }
+  for (let i = 0; i < 4; i++) if (gg[i] > 0) { const j = c.indexOf(gg[i]); if (j >= 0) { blow++; c[j] = -2; } }
+  return { hit, blow };
+}
+function mmRender(msg) {
+  const body = document.createElement('div');
+  PZ.history.forEach((h) => { const r = document.createElement('div'); r.className = 'maphint'; r.style.margin = '2px'; r.innerHTML = `${h.g.join(' ')} → ◉${h.hit}　○${h.blow}`; body.appendChild(r); });
+  const row = puzzleGrid(4);
+  PZ.guess.forEach((v, i) => { const c = mkCell(); c.innerHTML = tileBg('f_fort'); c.innerHTML += `<div class="ov" style="font-size:18px;font-weight:bold;color:#ffd23b">${v}</div>`; c.className += ' tap'; c.onclick = () => { PZ.guess[i] = PZ.guess[i] % 6 + 1; mmRender(msg); }; row.appendChild(c); });
+  body.appendChild(row);
+  puzzleFrame('封印の錠前 — 数当て', body, [
+    { label: '🔓 決定', primary: true, wide: true, fn: mmSubmit }, { label: '↩ あきらめる', wide: true, fn: puzzleQuit },
+  ], (msg ? msg + '<br>' : '') + `数字（上のマスをタップで 1〜6 切替）を合わせろ。◉=位置も一致／○=数字だけ一致。残り ${PZ.max - PZ.history.length} 回。`);
+}
+function mmSubmit() {
+  const fb = mmFeedback(PZ.guess, PZ.code);
+  PZ.history.push({ g: PZ.guess.slice(), hit: fb.hit, blow: fb.blow });
+  if (fb.hit === 4) return puzzleSolved();
+  if (PZ.history.length >= PZ.max) { showMsgs(['錠前は固く閉じたまま……', '（もう一度挑戦できる）'], () => mmInit()); return; }
+  mmRender('');
+}
+
+function mapMenu(inDungeon, ctx) {
   const s = stats();
-  const list = [{ label: `🌿 やくそう (×${G.herbs})`, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: () => {
+  const list = [];
+  if (ctx && ctx.fight) list.push({ label: `⚔️ ${ENEMIES[ctx.fight.key].name}と戦う`, primary: true, wide: true, fn: () => startBattle(ctx.fight.key, G.dungeonRegion, ctx.fight.idx) });
+  if (ctx && ctx.puzzle) list.push({ label: ctx.puzzle === 'nim' ? '🐍 残党の大蛇と頭脳戦' : ctx.puzzle === 'liar' ? '🗣 門番の嘘を見破る' : ctx.puzzle === 'sphinx' ? '🔮 スフィンクスの匣に挑む' : `🧩 ${PUZZLE_NAME[ctx.puzzle]}に挑戦`, primary: true, wide: true, fn: () => startPuzzle(ctx.puzzle, G.dungeonRegion) });
+  if (ctx && ctx.descend) list.push({ label: '🔻 階段をおりる', primary: true, wide: true, fn: descendStairs });
+  list.push({ label: `🌿 やくそう (×${G.herbs})`, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: () => {
     const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * HERB_HEAL_RATE)); G.herbs--; G.hp += heal;
     renderHud(); showMsgs([`やくそうを使った。HPが ${heal} 回復した。`], renderScene);
-  } }];
+  } });
   if (!inDungeon) list.push({ label: `💰 行商人 (${herbPrice().toLocaleString()}G)`, fn: visitMerchant });
   list.push({ label: '🛡 そうび／仲間', wide: true, fn: showStatus });
   setCmds(list, true);
