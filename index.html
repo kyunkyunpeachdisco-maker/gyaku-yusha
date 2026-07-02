@@ -230,8 +230,9 @@ const HERB_HEAL_RATE = 0.4;
 const HERB_BASE_PRICE = 600;
 const DROP_BASE_PRICE = 2000;   // 魔力の雫の初値（買うたび倍）
 const DROP_MP = 35;             // 雫1つで戻る魔力
-const WEAR_PER_HIT = 2.6;       // 被弾1回でレベルが下がる量（恒久）。摩耗は被弾からのみ生まれる
+const WEAR_PER_HIT = 3.0;       // 被弾1回でレベルが下がる量（恒久）。摩耗は被弾からのみ生まれる
 const MAXMP = 180;              // 魔力＝有限。「無傷で仕留める」手段はこの残量が上限
+const MATK = 130;               // 呪文の冴えは衰えない——衰えるのは体のほうだ
 const REST_MP = 0.0;            // 魔力は戦線移動でも戻らない
 
 // じゅもん・とくぎ（独自名。被弾で弱るほど強い技から使えなくなる）
@@ -275,9 +276,9 @@ const REGIONS = [
   { name:'魔王城',   desc:'すべてが終わった場所', list:['durahan','golem','durahan','golem'],
     onEnter:[], onClear:['airship_descent', 'leave_sage'] },
   { name:'竜の山脈', desc:'古竜たちの住処',       list:['dragon','icedrake','dragon','icedrake'],
-    onEnter:['village_unwelcome'], onClear:['leave_warrior'] },
+    onEnter:['village_unwelcome','slime_follower'], onClear:['king_envoy','leave_warrior'] },
   { name:'黒鉄の砦', desc:'魔王軍の前線基地跡',   list:['deathknight','scorpion','deathknight','scorpion'],
-    onEnter:['merchant_buyer'], onClear:['surrender_monster'] },
+    onEnter:['merchant_buyer'], onClear:['surrender_monster','bride_choice'] },
   { name:'亡者の沼', desc:'魂の通り道',           list:['wraith','mandragora','wraith','mandragora'],
     onEnter:['commander_offer'], onClear:['leave_priest','blessing_fades'] },
   { name:'ねじれの森', desc:'村への帰り道',       list:['wolf','harpy','wolf','harpy','wolf','harpy'],
@@ -330,8 +331,10 @@ function genMaze(cw, ch, seed) {
   })(0, 0);
   return g.map((r) => r.join(''));
 }
-const PUZZLE_OF = ['lights', 'sokoban', 'nim', 'mastermind', 'sphinx']; // 地域ごとの仕掛け（nim=大蛇／sphinx=ブラックボックス）
-const PUZZLE2_OF = ['ricochet', 'hex', 'liar', 'numberlink', null]; // 追加部屋（反射ロボ／ヘックス／嘘つき門番／数つなぎ）
+// hex / mastermind / ricochet はカジノ「実力堂」の卓に移設。ダンジョンには場所に根ざした仕掛けだけを残す
+const PUZZLE_OF = ['lights', 'sokoban', 'nim', 'numberlink', 'sphinx']; // 地域ごとの仕掛け（nim=大蛇／sphinx=ブラックボックス）
+const PUZZLE2_OF = ['nonogram', 'akari', 'liar', 'ulam', null]; // 追加部屋（壁画／暗闇の間／嘘つき門番／化けた残党）
+const PUZZLE3_OF = [null, null, 'zebra', null, null]; // 第3の間（進軍録）
 REGIONS.forEach((r, ri) => {
   const grid = genMaze(3, 3, 917 + ri * 131);
   const W = grid[0].length, H = grid.length;
@@ -342,10 +345,12 @@ REGIONS.forEach((r, ri) => {
   const K = r.list.length;
   const pz = PUZZLE_OF[ri], pc = (pz && cand.length > K) ? cand[K] : null;
   const pz2 = PUZZLE2_OF[ri], pc2 = (pz2 && cand.length > K + 1) ? cand[K + 1] : null;
+  const pz3 = PUZZLE3_OF[ri], pc3 = (pz3 && cand.length > K + 2) ? cand[K + 2] : null;
   r._maze = {
     grid, W, H, ent, ex, rooms: cand.slice(0, K),
     puzzle: pc ? { x: pc[0], y: pc[1], type: pz } : null,
     puzzle2: pc2 ? { x: pc2[0], y: pc2[1], type: pz2 } : null,
+    puzzle3: pc3 ? { x: pc3[0], y: pc3[1], type: pz3 } : null,
   };
 });
 
@@ -356,7 +361,7 @@ let msgQueue = [], msgDone = null;
 
 function newGame() {
   return {
-    wear: 0, hp: 0, mp: MAXMP, gold: 15000, herbs: 5, herbBought: 0, drops: 0, dropBought: 0,
+    wear: 0, hp: 0, mp: MAXMP, gold: 15000, herbs: 5, herbBought: 0, drops: 0, dropBought: 0, casinoWon: {},
     cleared: REGIONS.map((r) => r.list.map(() => false)),
     saved: 0, lost: 0, opened: false, finaleDone: false, descended: false,
     party: PARTY.slice(),
@@ -371,7 +376,7 @@ const stats = () => {
   const lv = lvOf();
   const baseAtk = 8 + lv, eqAtk = lv * 2, baseDef = 4 + lv, eqDef = lv;
   return { lv, maxHp: 40 + lv * 10, atk: baseAtk + eqAtk, def: baseDef + eqDef,
-           matk: 6 + lv * 2, baseAtk, eqAtk, baseDef, eqDef };
+           matk: MATK, baseAtk, eqAtk, baseDef, eqDef };
 };
 const regionCleared = (ri) => G.cleared[ri].every(Boolean);
 const regionUnlocked = (ri) => ri === 0 || regionCleared(ri - 1);
@@ -380,8 +385,9 @@ const allRegionsDone = () => curRegion() >= REGIONS.length;
 const remaining = () => { let n = G.finaleDone ? 0 : 1; G.cleared.forEach((a) => a.forEach((c) => { if (!c) n++; })); return n; };
 const roomAt = (ri, x, y) => REGIONS[ri]._maze.rooms.findIndex((p) => p[0] === x && p[1] === y);
 const walkableD = (ri, x, y) => { const g = REGIONS[ri]._maze.grid; return g[y] && g[y][x] && g[y][x] !== '#'; };
-const herbPrice = () => HERB_BASE_PRICE * Math.pow(2, G.herbBought);
-const dropPrice = () => DROP_BASE_PRICE * Math.pow(2, G.dropBought);
+const merchantRate = () => (G.choices && G.choices.bride === 'floria') ? 0.5 : 1; // フロリア商会の口利き
+const herbPrice = () => Math.round(HERB_BASE_PRICE * Math.pow(2, G.herbBought) * merchantRate());
+const dropPrice = () => Math.round(DROP_BASE_PRICE * Math.pow(2, G.dropBought) * merchantRate());
 const spellAvailable = (sp) => lvOf() >= sp.minLv;
 
 // ===== セーブ =====
@@ -401,8 +407,8 @@ function renderHud() {
   hud.innerHTML = `
     <div class="row">
       <span>勇者 Lv.${s.lv}</span>
-      <span class="zanto">残党 あと${remaining()}体</span>
-      <span>💰 ${G.gold.toLocaleString()}G　🌿 ×${G.herbs}　💧 ×${G.drops}</span>
+      <span class="zanto">残党 あと${G.limbo ? 1 : remaining()}体</span>
+      <span>${G.limbo ? `罪 ${G.gold.toLocaleString()}　後悔 ×${G.herbs}　業 ×${G.drops}` : `💰 ${G.gold.toLocaleString()}G　🌿 ×${G.herbs}　💧 ×${G.drops}`}</span>
     </div>
     <div class="row">
       <div class="barwrap"><span>HP ${Math.max(0,G.hp)}/${s.maxHp}</span>
@@ -452,13 +458,13 @@ function showChoice(msgs, options) { showMsgs(msgs, () => setCmds(options, true)
 // ===== タイトル =====
 function showTitle() {
   hud.style.display = 'none'; msgwin.style.display = 'none';
+  const saved = load();
   stage.innerHTML = `
     <div class="title-scene">
       <div><h1>逆勇者</h1><div class="sub">〜魔王を倒してからが本番〜</div></div>
       <div class="spr">${makeSprite('hero', 7)}</div>
       <div class="sub">敵は有限。すべて殲滅したら、物語は終わる。</div>
     </div>`;
-  const saved = load();
   const startNew = () => { clearSave(); G = newGame(); showOpening(); };
   const list = [{ label: 'はじめから', primary: true, wide: !saved, fn: () => {
     if (!saved) return startNew();
@@ -510,7 +516,7 @@ function regionAt(x, y) { const c = WORLD[y] && WORLD[y][x]; return (c >= '0' &&
 function isVillage(x, y) { return VILLAGE_POS && VILLAGE_POS.x === x && VILLAGE_POS.y === y; }
 function terrainKey(t, x, y) { return t === 'w' ? 't_water' : t === 'm' ? 't_mtn' : t === 'c' ? 't_cloud' : t === 'v' ? 't_void' : ((x + y) % 2 ? 't_grass' : 't_grass2'); }
 
-function renderScene() { if (G.view === 'dungeon') renderDungeon(); else renderWorld(); }
+function renderScene() { if (G.view === 'dungeon' && !G.limbo) renderDungeon(); else renderWorld(); }
 function startJourney() { G.view = 'world'; G.heroX = LOC[0].x; G.heroY = LOC[0].y + 1; G.dungeonRegion = -1; renderScene(); }
 
 function mkCell() { const c = document.createElement('div'); c.className = 'cell'; return c; }
@@ -541,8 +547,11 @@ function renderWorld() {
       cell.innerHTML += '<div class="ov">🏠</div><div class="lbl">故郷</div>';
     }
     if (x === G.heroX && y === G.heroY) cell.innerHTML += spriteOv('hero');
+    const slimeHere = G.limbo && G.choices.slime === 'fed' && x === VILLAGE_POS.x + 1 && y === VILLAGE_POS.y;
+    if (slimeHere) cell.innerHTML += spriteOv('slime');
     if ((Math.abs(x - G.heroX) + Math.abs(y - G.heroY)) === 1 && walkable(x, y)) {
-      cell.className += ' tap'; cell.onclick = () => worldTap(x, y);
+      cell.className += ' tap';
+      cell.onclick = slimeHere ? () => showMsgs(['……'], renderWorld) : () => worldTap(x, y);
     }
     grid.appendChild(cell);
   }
@@ -562,6 +571,7 @@ function worldTap(x, y) {
   renderWorld();
 }
 function tryEnterRegion(ri) {
+  if (G.limbo) { showMsgs(['「悔い改めよ」'], renderWorld); return; }
   if (regionCleared(ri)) { renderWorld(); return; }
   if (!regionUnlocked(ri)) { renderWorld(); showMsgs(['霧が濃く、まだ近づけない。手前の残党を片付けねば。'], renderWorld); return; }
   if (!G.firedEnter.includes(ri)) { G.firedEnter.push(ri); return runEvents(REGIONS[ri].onEnter, () => enterRegionAfterEvents(ri)); }
@@ -576,6 +586,7 @@ function backToWorld(ri) {
   renderWorld();
 }
 function tryFinale() {
+  if (G.limbo) { showMsgs(['「悔い改めよ」'], renderWorld); return; }
   if (allRegionsDone()) showFinaleGate();
   else showMsgs(['まだ残党が残っている。村へは帰れない。'], renderWorld);
 }
@@ -604,7 +615,8 @@ function renderDungeon() {
   const isEnt = G.dx === mz.ent[0] && G.dy === mz.ent[1];
   const enemyHere = idx >= 0 && !G.cleared[ri][idx];
   const here = (mz.puzzle && mz.puzzle.x === G.dx && mz.puzzle.y === G.dy) ? mz.puzzle
-    : (mz.puzzle2 && mz.puzzle2.x === G.dx && mz.puzzle2.y === G.dy) ? mz.puzzle2 : null;
+    : (mz.puzzle2 && mz.puzzle2.x === G.dx && mz.puzzle2.y === G.dy) ? mz.puzzle2
+    : (mz.puzzle3 && mz.puzzle3.x === G.dx && mz.puzzle3.y === G.dy) ? mz.puzzle3 : null;
   const onPuzzle = !!here;
   const pzDone = here ? !!G.puzzleSolved[here.type] : false;
   const doors = doorsAt(ri, G.dx, G.dy);
@@ -634,7 +646,7 @@ function renderDungeon() {
     if (decor.map[dk]) cell.innerHTML += decorOv(decor.map[dk]); // 小物
     if (rx === CX && ry === 2) {
       if (enemyHere) cell.innerHTML += `<div class="ov big">${makeSprite(ENEMIES[reg.list[idx]].sprite, 2.4)}</div>`;
-      else if (onPuzzle) cell.innerHTML += pzDone ? '<div class="ov">✓</div>' : (here.type === 'nim' ? spriteOv('orochi') : here.type === 'liar' ? spriteOv('soldier') : here.type === 'sphinx' ? decorOv('statue') : decorOv('chest'));
+      else if (onPuzzle) cell.innerHTML += pzDone ? '<div class="ov">✓</div>' : (here.type === 'nim' ? spriteOv('orochi') : here.type === 'liar' || here.type === 'zebra' ? spriteOv('soldier') : here.type === 'ulam' ? spriteOv('citizen') : here.type === 'sphinx' || here.type === 'nonogram' ? decorOv('statue') : here.type === 'akari' ? decorOv('torch') : decorOv('chest'));
       else if (isExit) cell.innerHTML += '<div class="ov big">🔻</div>';
       else if (idx >= 0) cell.innerHTML += '<div class="ov">💀</div>';
       else if (isEnt) cell.innerHTML += '<div class="ov">🚪</div>';
@@ -645,7 +657,13 @@ function renderDungeon() {
   wrap.appendChild(grid);
   const hint = document.createElement('div'); hint.className = 'maphint';
   hint.innerHTML = enemyHere ? '残党がいる！　戦うか、扉の方へスワイプして去るか。'
-    : (onPuzzle && !pzDone) ? (here.type === 'nim' ? '残党が多頭の大蛇とともに待ち構えている。頭脳戦を挑むか。' : here.type === 'liar' ? '残党の門番たちが立ちふさがる。誰の言葉が嘘か、見破るか。' : '封印された宝箱だ。挑戦して中身を頂くか？')
+    : (onPuzzle && !pzDone) ? (here.type === 'nim' ? '残党が多頭の大蛇とともに待ち構えている。頭脳戦を挑むか。'
+      : here.type === 'liar' ? '残党の門番たちが立ちふさがる。誰の言葉が嘘か、見破るか。'
+      : here.type === 'nonogram' ? '風化した壁画がある。刻まれた数字が、修復の手がかりのようだ。'
+      : here.type === 'akari' ? '窓のない暗闇の間だ。誰かのすすり泣きが聞こえる……松明で照らせそうだ。'
+      : here.type === 'zebra' ? '討伐隊の進軍録が散らばっている。読み解けば、何かが分かるかもしれない。'
+      : here.type === 'ulam' ? '避難民たちが身を寄せ合っている。……ひとり、様子がおかしい。'
+      : '封印された宝箱だ。挑戦して中身を頂くか？')
     : (isExit && done) ? '🔻 階段がある。おりて次の地へ。'
     : (done ? '残党は全滅した。🔻 階段（出口）を探せ。' : '扉（矢印）の方へスワイプ／タップで隣の部屋へ。');
   wrap.appendChild(hint);
@@ -687,7 +705,9 @@ function attachSwipe(el, onDir) {
 }
 
 // ===== パズル部屋（任意・宝箱）=====
-const PUZZLE_NAME = { nim: '大蛇', lights: '消えずの篝火', sokoban: '鉄箱の倉', mastermind: '封印の錠前', sphinx: 'スフィンクスの匣', liar: '門番の問答', ricochet: '滑る魔像', hex: 'ヘックス', numberlink: '数つなぎ' };
+const PUZZLE_NAME = { nim: '大蛇', lights: '消えずの篝火', sokoban: '鉄箱の倉', mastermind: '封印の錠前', sphinx: 'スフィンクスの匣', liar: '門番の問答', ricochet: '滑る魔像', hex: 'ヘックス', numberlink: '数つなぎ', nonogram: '風化した壁画', akari: '暗闇の間', zebra: '討伐隊の進軍録', ulam: '化けた残党' };
+// パズル報酬：herb=やくそう／drop=魔力の雫／wear=摩耗回復（一度きりのダンジョンパズル限定。繰り返し遊べるカジノには置かない）
+const PUZZLE_REWARD = { lights: 'herb', sokoban: 'herb', mastermind: 'drop', sphinx: 'drop', ricochet: 'herb', hex: 'drop', liar: 'herb', numberlink: 'herb', nonogram: 'drop', akari: 'herb', zebra: 'wear', ulam: 'wear' };
 let PZ = null;
 function startPuzzle(type, ri) {
   if (type === 'nim') return orochiIntro(ri); // ニムは大蛇退治イベント
@@ -699,6 +719,10 @@ function startPuzzle(type, ri) {
   else if (type === 'ricochet') ricoInit();
   else if (type === 'hex') hexInit();
   else if (type === 'numberlink') nlInit();
+  else if (type === 'nonogram') nonoInit();
+  else if (type === 'akari') akariInit();
+  else if (type === 'zebra') zebraInit();
+  else if (type === 'ulam') ulamInit();
   else mmInit();
 }
 function puzzleGrid(cols) { const g = document.createElement('div'); g.className = 'mapgrid'; g.style.gridTemplateColumns = `repeat(${cols},30px)`; g.style.margin = '4px auto'; return g; }
@@ -713,10 +737,19 @@ function puzzleFrame(title, body, controls, sub, onSwipe) {
   if (onSwipe) attachSwipe(body, onSwipe);
   setCmds(controls || [{ label: '↩ あきらめる', wide: true, fn: puzzleQuit }], true);
 }
-function puzzleQuit() { PZ = null; renderDungeon(); }
-function puzzleSolved() {
-  G.puzzleSolved[PZ.type] = true; G.herbs += 1; PZ = null; renderHud(); save();
-  showMsgs(['🎉 封印が解けた！　宝箱が開く。', 'やくそうを1つ手に入れた。'], () => renderDungeon());
+function puzzleQuit() { const casino = PZ && PZ.venue === 'casino'; PZ = null; casino ? showCasino() : renderDungeon(); }
+function puzzleSolved(extraMsgs) {
+  if (PZ && PZ.venue === 'casino') return casinoWinFlow();
+  const kind = PUZZLE_REWARD[PZ.type] || 'herb';
+  G.puzzleSolved[PZ.type] = true; PZ = null;
+  let rmsg;
+  if (kind === 'drop') { G.drops++; rmsg = '💧 魔力の雫を1つ手に入れた。'; }
+  else if (kind === 'wear') {
+    const b = lvOf(); G.wear = Math.max(0, G.wear - 3);
+    rmsg = lvOf() > b ? `頭脳戦の昂りで体が軽い。レベルが ${lvOf()} に回復した！` : '頭脳戦の昂りで、体が少し軽くなった。';
+  } else { G.herbs++; rmsg = '🌿 やくそうを1つ手に入れた。'; }
+  renderHud(); save();
+  showMsgs((extraMsgs || ['🎉 封印が解けた！　宝箱が開く。']).concat([rmsg]), () => renderDungeon());
 }
 // --- 残党の多頭大蛇（中身はニム/石取り）: 残党との頭脳戦。勝てば撃退、負ければ返り討ち ---
 function orochiIntro(ri) {
@@ -1087,6 +1120,222 @@ function nlRender(msg) {
     { label: '↺ 全消し', fn: nlInit }, { label: '↩ あきらめる', fn: puzzleQuit },
   ], (msg ? msg + '<br>' : '') + '同じ番号をタップで選び、隣マスを順にタップして線を伸ばす。全ペアを交差せず結び、<b>全マスを埋めろ</b>。');
 }
+// --- 風化した壁画（ピクロス）: 数字ヒント通りに塗り、壁画を修復する ---
+const NONO_ROWS = ['#..##..#', '#.####.#', '########', '##.##.##', '########', '#.####.#', '.######.', '.##..##.'];
+function nonoRuns(cells) { const out = []; let c = 0; for (const v of cells) { if (v) c++; else if (c) { out.push(c); c = 0; } } if (c) out.push(c); return out.length ? out : [0]; }
+function nonoInit() {
+  PZ.target = NONO_ROWS.map((r) => [...r].map((ch) => ch === '#' ? 1 : 0));
+  PZ.rowH = PZ.target.map((r) => nonoRuns(r));
+  PZ.colH = []; for (let x = 0; x < 8; x++) PZ.colH.push(nonoRuns(PZ.target.map((r) => r[x])));
+  PZ.grid = new Array(64).fill(0); // 0=空 1=塗 2=×印
+  nonoRender('');
+}
+function nonoWin() {
+  for (let y = 0; y < 8; y++) if (String(nonoRuns(PZ.grid.slice(y * 8, y * 8 + 8).map((v) => v === 1 ? 1 : 0))) !== String(PZ.rowH[y])) return false;
+  for (let x = 0; x < 8; x++) { const col = []; for (let y = 0; y < 8; y++) col.push(PZ.grid[y * 8 + x] === 1 ? 1 : 0); if (String(nonoRuns(col)) !== String(PZ.colH[x])) return false; }
+  return true;
+}
+function nonoTap(i) {
+  PZ.grid[i] = (PZ.grid[i] + 1) % 3;
+  if (nonoWin()) return puzzleSolved(['最後のひと塗りで、壁画が浮かび上がった。', `${makeSprite('demonking', 4)}`, '——玉座に座る、在りし日の魔王の姿だ。', '誰が彫ったのだろう。誰が、これを拝んでいたのだろう。']);
+  nonoRender('');
+}
+function nonoRender(msg) {
+  const body = puzzleGrid(9);
+  body.appendChild(mkCell()); // 左上角
+  for (let x = 0; x < 8; x++) { const c = mkCell(); c.innerHTML = `<div class="ov" style="font-size:9px;line-height:1.15;color:#ffd23b;font-weight:bold">${PZ.colH[x].join('<br>')}</div>`; body.appendChild(c); }
+  for (let y = 0; y < 8; y++) {
+    const h = mkCell(); h.innerHTML = `<div class="ov" style="font-size:9px;color:#ffd23b;font-weight:bold;letter-spacing:1px">${PZ.rowH[y].join(' ')}</div>`; body.appendChild(h);
+    for (let x = 0; x < 8; x++) {
+      const i = y * 8 + x, c = mkCell();
+      c.innerHTML = tileBg('f_castle'); c.className += ' tap';
+      if (PZ.grid[i] === 1) c.innerHTML += '<div class="ov" style="background:#d9c47a;width:84%;height:84%;margin:auto;border-radius:2px"></div>';
+      else if (PZ.grid[i] === 2) c.innerHTML += '<div class="ov" style="color:#666;font-size:13px">✕</div>';
+      c.onclick = () => nonoTap(i);
+      body.appendChild(c);
+    }
+  }
+  puzzleFrame('風化した壁画 — 修復', body, [
+    { label: '↺ 全消し', fn: nonoInit }, { label: '↩ あきらめる', fn: puzzleQuit },
+  ], (msg ? msg + '<br>' : '') + '数字＝その行・列で<b>連続して塗るマスの数</b>（複数の数字は間に1マス以上の空き）。タップで 塗る→✕→空 の切替。すべての数字を満たせば壁画が蘇る。');
+}
+// --- 暗闇の間（美術館）: 松明で全マスを照らす。松明同士は照らし合ってはならない ---
+const AKARI = { N: 6, blacks: { 2: 1, 3: 1, 7: 2, 10: 2, 19: 0, 24: 1, 29: 1 } }; // 一意解を検証済みの固定盤面
+function akariBlack(i) { return AKARI.blacks[i] !== undefined; }
+function akariInit() { PZ.torch = new Set(); akariRender(''); }
+function akariLitSet() {
+  const N = AKARI.N, lit = new Set();
+  for (const t of PZ.torch) {
+    lit.add(t); const x = t % N, y = (t / N) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      let cx = x + dx, cy = y + dy;
+      while (cx >= 0 && cx < N && cy >= 0 && cy < N && !akariBlack(cy * N + cx)) { lit.add(cy * N + cx); cx += dx; cy += dy; }
+    }
+  }
+  return lit;
+}
+function akariConflicts() {
+  const N = AKARI.N, bad = new Set();
+  for (const t of PZ.torch) {
+    const x = t % N, y = (t / N) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      let cx = x + dx, cy = y + dy;
+      while (cx >= 0 && cx < N && cy >= 0 && cy < N && !akariBlack(cy * N + cx)) { if (PZ.torch.has(cy * N + cx)) { bad.add(t); bad.add(cy * N + cx); } cx += dx; cy += dy; }
+    }
+  }
+  return bad;
+}
+function akariNumCount(i) {
+  const N = AKARI.N, x = i % N, y = (i / N) | 0; let c = 0;
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx >= 0 && nx < N && ny >= 0 && ny < N && PZ.torch.has(ny * N + nx)) c++; }
+  return c;
+}
+function akariTap(i) {
+  if (akariBlack(i)) return;
+  if (PZ.torch.has(i)) PZ.torch.delete(i); else PZ.torch.add(i);
+  const lit = akariLitSet(), N = AKARI.N;
+  let all = true; for (let k = 0; k < N * N; k++) if (!akariBlack(k) && !lit.has(k)) { all = false; break; }
+  if (all && akariConflicts().size === 0 && Object.keys(AKARI.blacks).every((k) => akariNumCount(+k) === AKARI.blacks[k]))
+    return puzzleSolved(['最後の松明が灯り、闇が消えた。', '部屋の隅にうずくまっていた人影が、光の中でようやく顔を上げた。']);
+  akariRender('');
+}
+function akariRender(msg) {
+  const N = AKARI.N, body = puzzleGrid(N), lit = akariLitSet(), bad = akariConflicts();
+  for (let i = 0; i < N * N; i++) {
+    const c = mkCell();
+    if (akariBlack(i)) {
+      const over = akariNumCount(i) > AKARI.blacks[i];
+      c.innerHTML = tileBg('d_wall') + `<div class="ov" style="color:${over ? '#ff5a5a' : '#ffd23b'};font-weight:bold;font-size:15px">${AKARI.blacks[i]}</div>`;
+    } else {
+      c.innerHTML = tileBg('f_mtn');
+      if (lit.has(i)) c.innerHTML += '<div class="ov" style="background:rgba(255,210,80,0.28)"></div>';
+      if (PZ.torch.has(i)) c.innerHTML += bad.has(i) ? `<div class="ov" style="filter:drop-shadow(0 0 4px #ff3b3b)">${makeSprite('torch', 2)}</div>` : decorOv('torch');
+      c.className += ' tap'; c.onclick = () => akariTap(i);
+    }
+    body.appendChild(c);
+  }
+  puzzleFrame('暗闇の間 — すべて照らせ', body, [
+    { label: '↺ 全消し', fn: akariInit }, { label: '↩ あきらめる', fn: puzzleQuit },
+  ], (msg ? msg + '<br>' : '') + '白マスをタップ＝松明を置く／外す。松明は上下左右を壁まで照らす。<b>全マスを照らせ。ただし松明同士が照らし合ってはならない</b>。数字＝その壁の上下左右にある松明の数。');
+}
+// --- 討伐隊の進軍録（ゼブラパズル）: 証言から3分隊の行き先と刻限を確定する ---
+const ZB = { squads: ['赤盾隊', '青槍隊', '黒鴉隊'], vills: ['川の村', '丘の村', '森の村'], times: ['夜明け', '正午', '日暮れ'] };
+const ZB_PERMS = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+function zbClueText(c) {
+  switch (c.kind) {
+    case 'sv': return `「${ZB.squads[c.s]}は${ZB.vills[c.v]}へ向かった」`;
+    case 'svn': return `「${ZB.squads[c.s]}は${ZB.vills[c.v]}へは行っていない」`;
+    case 'st': return `「${ZB.squads[c.s]}は${ZB.times[c.t]}に発った」`;
+    case 'stn': return `「${ZB.squads[c.s]}は${ZB.times[c.t]}には発っていない」`;
+    case 'vt': return `「${ZB.vills[c.v]}へ向かった隊は、${ZB.times[c.t]}に発った」`;
+  }
+}
+function zbClueEval(c, v, t) {
+  switch (c.kind) {
+    case 'sv': return v[c.s] === c.v;
+    case 'svn': return v[c.s] !== c.v;
+    case 'st': return t[c.s] === c.t;
+    case 'stn': return t[c.s] !== c.t;
+    case 'vt': return t[v.indexOf(c.v)] === c.t;
+  }
+}
+function zbGen(seed) {
+  const rng = mulberry32(seed);
+  const V = ZB_PERMS[Math.floor(rng() * 6)], T = ZB_PERMS[Math.floor(rng() * 6)];
+  const pool = [];
+  for (let s = 0; s < 3; s++) for (let v = 0; v < 3; v++) pool.push(V[s] === v ? { kind: 'sv', s, v } : { kind: 'svn', s, v });
+  for (let s = 0; s < 3; s++) for (let t = 0; t < 3; t++) { if (T[s] === t) pool.push({ kind: 'st', s, t }); else pool.push({ kind: 'stn', s, t }); }
+  for (let v = 0; v < 3; v++) pool.push({ kind: 'vt', v, t: T[V.indexOf(v)] });
+  shuffle(pool, rng);
+  // 直接的すぎる証言（sv/st）は後回しにして、推理の余地を残す
+  pool.sort((a, b) => (a.kind === 'sv' || a.kind === 'st' ? 1 : 0) - (b.kind === 'sv' || b.kind === 'st' ? 1 : 0));
+  const clues = [];
+  const count = () => { let n = 0; for (const pv of ZB_PERMS) for (const pt of ZB_PERMS) if (clues.every((c) => zbClueEval(c, pv, pt))) n++; return n; };
+  for (const c of pool) { if (count() === 1) break; clues.push(c); }
+  for (let i = clues.length - 1; i >= 0; i--) { const c = clues.splice(i, 1)[0]; if (count() !== 1) clues.splice(i, 0, c); }
+  return { V, T, clues };
+}
+function zebraInit() {
+  const d = zbGen(PZ.ri * 4111 + 71);
+  PZ.V = d.V; PZ.T = d.T; PZ.clues = d.clues;
+  PZ.gv = [0, 1, 2]; PZ.gt = [0, 1, 2];
+  zebraRender('');
+}
+function zebraRender(msg) {
+  const body = document.createElement('div');
+  const cl = document.createElement('div'); cl.className = 'maphint'; cl.style.cssText = 'text-align:left;max-width:340px;margin:0 auto 6px';
+  cl.innerHTML = '<b>進軍録の証言：</b><br>' + PZ.clues.map((c, i) => `${i + 1}. ${zbClueText(c)}`).join('<br>');
+  body.appendChild(cl);
+  for (let s = 0; s < 3; s++) {
+    const row = document.createElement('div');
+    row.style.cssText = 'margin:5px auto;max-width:340px;display:flex;gap:6px;align-items:center;justify-content:center';
+    const chip = (txt, fn, color) => { const el = document.createElement('span'); el.className = 'tap'; el.style.cssText = `border:2px solid ${color};border-radius:5px;padding:6px 10px;font-size:14px;cursor:pointer`; el.textContent = txt; el.onclick = fn; return el; };
+    const name = document.createElement('span'); name.style.cssText = 'font-size:13px;font-weight:bold;min-width:60px'; name.textContent = ZB.squads[s];
+    row.appendChild(name);
+    row.appendChild(chip('🏘 ' + ZB.vills[PZ.gv[s]], () => { PZ.gv[s] = (PZ.gv[s] + 1) % 3; zebraRender(msg); }, '#7fd98f'));
+    row.appendChild(chip('🕒 ' + ZB.times[PZ.gt[s]], () => { PZ.gt[s] = (PZ.gt[s] + 1) % 3; zebraRender(msg); }, '#7fd0ff'));
+    body.appendChild(row);
+  }
+  puzzleFrame('討伐隊の進軍録 — 矛盾なき配置', body, [
+    { label: '📜 照合する', primary: true, wide: true, fn: zebraSubmit }, { label: '↩ あきらめる', wide: true, fn: puzzleQuit },
+  ], (msg ? msg + '<br>' : '') + '各隊の<b>行き先</b>と<b>出発の刻限</b>をタップで切り替え、すべての証言と矛盾しない唯一の配置を当てろ。（行き先・刻限に重複はない）');
+}
+function zebraSubmit() {
+  if (new Set(PZ.gv).size < 3 || new Set(PZ.gt).size < 3) return zebraRender('同じ村・同じ刻限に複数の隊はあり得ない……');
+  if (PZ.gv.every((v, s) => v === PZ.V[s]) && PZ.gt.every((t, s) => t === PZ.T[s]))
+    return puzzleSolved(['「——記録の欠けは、これで埋まった」', '進軍録の裏張りから、従軍書記が隠した包みが滑り落ちた。']);
+  zebraRender('証言のどこかと食い違っている……');
+}
+// --- 化けた残党（嘘つき探し）: はい/いいえの尋問で特定。ただし答えは一度だけ嘘をつける ---
+const ULAM_N = 5, ULAM_Q = 6;
+function ulamDedup(arr) { const m = {}; for (const st of arr) if (m[st.i] === undefined || st.lies < m[st.i]) m[st.i] = st.lies; return Object.keys(m).map((k) => ({ i: +k, lies: m[k] })); }
+function ulamInit() {
+  PZ.cand = []; for (let i = 0; i < ULAM_N; i++) PZ.cand.push({ i, lies: 0 });
+  PZ.qLeft = ULAM_Q; PZ.sel = new Set(); PZ.log = [];
+  ulamRender('');
+}
+function ulamAsk() {
+  if (PZ.qLeft <= 0 || PZ.sel.size === 0) return;
+  // 敵対的回答：候補がより多く残る答えを返す（確証を得るには質問の削り方が問われる）
+  const yes = ulamDedup(PZ.cand.map((st) => PZ.sel.has(st.i) ? st : { i: st.i, lies: st.lies + 1 }).filter((st) => st.lies <= 1));
+  const no = ulamDedup(PZ.cand.map((st) => PZ.sel.has(st.i) ? { i: st.i, lies: st.lies + 1 } : st).filter((st) => st.lies <= 1));
+  const ans = yes.length >= no.length;
+  PZ.cand = ans ? yes : no;
+  PZ.qLeft--;
+  PZ.log.push({ set: [...PZ.sel].sort().map((v) => v + 1).join(','), ans });
+  PZ.sel = new Set();
+  ulamRender('');
+}
+function ulamAccuse() {
+  if (PZ.sel.size !== 1) return ulamRender('ひとりだけ選んで、突きつけろ。');
+  const j = [...PZ.sel][0];
+  if (PZ.cand.every((st) => st.i === j))
+    return puzzleSolved(['指を突きつけた瞬間、その「村人」の輪郭が煙のように崩れた。', '化けていた残党は悲鳴を上げて霧散し——残った人々が、ようやく息をついた。']);
+  PZ.sel = new Set();
+  showMsgs(['「……ち、違う！　わたしじゃない！」', 'その目は、本物の恐怖だった。確証のない指は、人を傷つけただけだった。', '（皆の信用を失った。証言を、最初から集め直すことになる）'], ulamInit);
+}
+function ulamRender(msg) {
+  const body = document.createElement('div');
+  const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:8px;justify-content:center;margin:4px 0 8px';
+  for (let i = 0; i < ULAM_N; i++) {
+    const d = document.createElement('div'); d.className = 'tap';
+    d.style.cssText = 'text-align:center;cursor:pointer;padding:4px 6px;border-radius:6px;border:2px solid ' + (PZ.sel.has(i) ? '#ffd23b' : 'rgba(255,255,255,0.15)');
+    d.innerHTML = makeSprite('citizen', 3) + `<div style="font-size:11px;margin-top:2px">${i + 1}番</div>`;
+    d.onclick = () => { if (PZ.sel.has(i)) PZ.sel.delete(i); else PZ.sel.add(i); ulamRender(msg); };
+    row.appendChild(d);
+  }
+  body.appendChild(row);
+  if (PZ.log.length) {
+    const lg = document.createElement('div'); lg.className = 'maphint'; lg.style.cssText = 'text-align:left;max-width:320px;margin:0 auto';
+    lg.innerHTML = PZ.log.map((l, k) => `問${k + 1}【${l.set}番の中にいるか？】→ ${l.ans ? '<b style="color:#ff8a8a">「いる」</b>' : '<b style="color:#7fd0ff">「いない」</b>'}`).join('<br>');
+    body.appendChild(lg);
+  }
+  puzzleFrame('化けた残党 — 尋問', body, [
+    { label: `❓ この中にいるか（残${PZ.qLeft}回）`, primary: true, disabled: PZ.qLeft <= 0 || PZ.sel.size === 0, fn: ulamAsk },
+    { label: '☝ こいつが化け物だ', disabled: PZ.sel.size !== 1, fn: ulamAccuse },
+    { label: '↩ あきらめる', wide: true, fn: puzzleQuit },
+  ], (msg ? msg + '<br>' : '') + '避難民5人のうち1人が、化けた残党だ。人をタップで選び「この中にいるか」と尋問できる。<b>答えは全体で一度だけ、嘘かもしれない</b>。確証を得てから、突きつけろ。');
+}
 // --- 消えずの篝火（全部消す）---
 function lightsToggle(i) {
   const n = PZ.n, x = i % n, y = (i / n) | 0;
@@ -1184,8 +1433,20 @@ function mapMenu(inDungeon, ctx) {
   const s = stats();
   const list = [];
   if (ctx && ctx.fight) list.push({ label: `⚔️ ${ENEMIES[ctx.fight.key].name}と戦う`, primary: true, wide: true, fn: () => startBattle(ctx.fight.key, G.dungeonRegion, ctx.fight.idx) });
-  if (ctx && ctx.puzzle) list.push({ label: ctx.puzzle === 'nim' ? '🐍 残党の大蛇と頭脳戦' : ctx.puzzle === 'liar' ? '🗣 門番の嘘を見破る' : ctx.puzzle === 'sphinx' ? '🔮 スフィンクスの匣に挑む' : `🧩 ${PUZZLE_NAME[ctx.puzzle]}に挑戦`, primary: true, wide: true, fn: () => startPuzzle(ctx.puzzle, G.dungeonRegion) });
+  if (ctx && ctx.puzzle) list.push({ label: ctx.puzzle === 'nim' ? '🐍 残党の大蛇と頭脳戦' : ctx.puzzle === 'liar' ? '🗣 門番の嘘を見破る' : ctx.puzzle === 'sphinx' ? '🔮 スフィンクスの匣に挑む' : ctx.puzzle === 'nonogram' ? '🧱 壁画を修復する' : ctx.puzzle === 'akari' ? '🔥 暗闇の間を照らす' : ctx.puzzle === 'zebra' ? '📜 進軍録の矛盾を解く' : ctx.puzzle === 'ulam' ? '🎭 化けた残党を暴く' : `🧩 ${PUZZLE_NAME[ctx.puzzle]}に挑戦`, primary: true, wide: true, fn: () => startPuzzle(ctx.puzzle, G.dungeonRegion) });
   if (ctx && ctx.descend) list.push({ label: '🔻 階段をおりる', primary: true, wide: true, fn: descendStairs });
+  if (G.limbo) {
+    // アイテムは「背負ったもの」、メニューは「もう間に合わないもの」。
+    // 押すと元の施設が開く——壊れた姿で（行商人=手遅れ／実力堂=取り返し／そうび=もう戻れない）
+    list.push({ label: `後悔 (×${G.herbs})`, disabled: true });
+    list.push({ label: `業 (×${G.drops})`, disabled: true });
+    list.push({ label: '手遅れ', fn: visitMerchant });
+    list.push({ label: '取り返し', fn: visitCasino });
+    list.push({ label: 'もう戻れない', fn: showStatus });
+    list.push({ label: '🖤 くろい心臓', fn: () => {} });
+    setCmds(list, true);
+    return;
+  }
   list.push({ label: `🌿 やくそう (×${G.herbs})`, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: () => {
     const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * HERB_HEAL_RATE)); G.herbs--; G.hp += heal;
     renderHud(); save(); showMsgs([`やくそうを使った。HPが ${heal} 回復した。`], renderScene);
@@ -1195,25 +1456,113 @@ function mapMenu(inDungeon, ctx) {
     renderHud(); save(); showMsgs([`魔力の雫を使った。魔力が ${r} 回復した。`], renderScene);
   } });
   if (!inDungeon) list.push({ label: '💰 行商人', fn: visitMerchant });
+  if (!inDungeon && G.descended) list.push({ label: '🎰 実力堂', fn: visitCasino });
   list.push({ label: '🛡 そうび／仲間', wide: true, fn: showStatus });
   setCmds(list, true);
 }
 function showStatus() {
+  if (G.limbo) {
+    showMsgs([
+      `<b>そうび</b>`,
+      `残酷　こうげき +——／無念　しゅび +——`,
+      `<b>仲間</b>：破滅`,
+    ], renderScene);
+    return;
+  }
   const s = stats();
   const party = G.party.length ? G.party.join('、') : '——（もう、誰もいない）';
   showMsgs([
     `<b>そうび</b>`,
     `英雄の剣　こうげき +${s.eqAtk}／英雄のよろい　しゅび +${s.eqDef}`,
     `削れるほど武具の輝きも鈍る。レベルが下がれば、やがてただの鉄に。`,
-    `力を守る道はふたつ。手を出さず見捨てるか、魔力で一撃で仕留めるか——刃を交えれば、そのたび確実に削れる。`,
+    `力を守る道はふたつ。手を出さず見捨てるか、魔力で仕留めるか——刃を交えれば、そのたび確実に削れる。`,
+    `じゅもんの冴えは衰えない。衰えるのは体のほうだ。ただし魔力は、使えば二度と自然には戻らない。`,
+    `この世界に運はない。同じ手順は、必ず同じ結果になる。`,
     `<b>仲間</b>：${party}`,
     `魔力（じゅもん）は有限。戦いでは戻らない。頼れるのは行商人の「魔力の雫」だけだ。`,
   ], renderScene);
 }
+// ===== カジノ「実力堂」：運の要素がひとつもない、腕だけの卓 =====
+const CASINO_FEE = 500;
+function visitCasino() {
+  if (G.limbo) {
+    showMsgs(['受付「悔い改めよ」'], () => {
+      setCmds([
+        { label: 'どうして', fn: () => {} },
+        { label: 'なぜ', fn: () => {} },
+        { label: 'おしえて', fn: () => {} },
+        { label: '↩ 立ち去る', wide: true, fn: renderScene },
+      ], true);
+    });
+    return;
+  }
+  G.casinoWon = G.casinoWon || {};
+  if (!G.choices.casinoSeen) {
+    G.choices.casinoSeen = true;
+    showMsgs([
+      '街道沿いに、場違いに明るい店があった。娯楽場<b>「実力堂」</b>。',
+      '受付「ようこそ。運任せの賭場は、戦争でぜんぶ潰れましてね」',
+      '受付「今どき、運に賭ける余裕のある人なんて、どこにもいないでしょう？」',
+      '受付「だから、うちの卓にサイコロはありません。<b>あるのは腕だけ。実力に、賭けなさいな</b>」',
+    ], showCasino);
+    return;
+  }
+  showCasino();
+}
+function showCasino() {
+  renderHud(); save();
+  stage.innerHTML = `<div class="map-scene"><h2>🎰 娯楽場「実力堂」</h2>
+    <div class="map-sub">サイコロも、スロットもない。<br>運の要素がひとつもない、腕だけの卓が3つ。<br>挑戦料 ${CASINO_FEE}G。景品は各卓、初勝利のみ。<br>（魔像の卓は<b>最少手クリア</b>だけが景品対象）</div></div>`;
+  const start = (type, ri, init) => () => {
+    G.gold -= CASINO_FEE; renderHud(); save();
+    PZ = { type, ri, venue: 'casino' };
+    init();
+  };
+  setCmds([
+    { label: `${G.casinoWon.hex ? '✓ ' : ''}♟ 対戦ヘックス (${CASINO_FEE}G)`, disabled: G.gold < CASINO_FEE, fn: start('hex', 0, hexInit) },
+    { label: `${G.casinoWon.mastermind ? '✓ ' : ''}🔐 数当ての卓 (${CASINO_FEE}G)`, disabled: G.gold < CASINO_FEE, fn: start('mastermind', 9, mmInit) },
+    { label: `${G.casinoWon.ricochet ? '✓ ' : ''}🗿 滑る魔像の卓 (${CASINO_FEE}G)`, disabled: G.gold < CASINO_FEE, fn: start('ricochet', 9, ricoInit) },
+    { label: '↩ 立ち去る', wide: true, fn: renderWorld },
+  ], true);
+}
+function casinoWinFlow() {
+  const type = PZ.type, moves = PZ.moves, par = PZ.par;
+  PZ = null;
+  if (type === 'ricochet' && moves > par)
+    return showMsgs([`受付「お運びは見事。ですが景品は<b>最少の${par}手</b>で運んだ方だけ。それが実力堂ですので」`], showCasino);
+  if (G.casinoWon[type])
+    return showMsgs(['受付「お見事。……景品はもうお渡し済みですよ。あとに残るのは名誉だけです」'], showCasino);
+  G.casinoWon[type] = true;
+  const msgs = [];
+  if (type === 'hex') { G.drops += 2; msgs.push('受付「うちの用心棒に勝つ人、久しぶりに見ました」', '景品：💧 魔力の雫×2 を手に入れた。'); }
+  else if (type === 'mastermind') { G.herbs += 2; msgs.push('受付「錠前の中が見えているみたいでしたね」', '景品：🌿 やくそう×2 を手に入れた。'); }
+  else { G.gold += 2000; msgs.push('受付「一手の無駄もない。惚れ惚れします」', '景品：💰 賞金 2,000G を手に入れた。'); }
+  if (G.casinoWon.hex && G.casinoWon.mastermind && G.casinoWon.ricochet && !G.choices.casinoDoll) {
+    G.choices.casinoDoll = true;
+    msgs.push('受付「——全卓制覇。特別景品をお持ちください」',
+      '<b>てのひらサイズの英雄人形</b>を手に入れた。戦時中に量産され、いまは誰も欲しがらない品だ。');
+  }
+  renderHud(); save();
+  showMsgs(msgs, showCasino);
+}
+
 function visitMerchant() {
+  if (G.limbo) {
+    showMsgs(['行商人「悔い改めよ」'], () => {
+      setCmds([
+        { label: '後悔 (お前のせいだ)', disabled: true },
+        { label: '業 (お前のせいだ)', disabled: true },
+        { label: '罪 (お前のせいだ)', disabled: true },
+        { label: 'やめる', wide: true, fn: renderScene },
+      ], true);
+    });
+    return;
+  }
   const hp = herbPrice(), dp = dropPrice();
-  showMsgs(['行商人「へっへっへ、戦後はなにかと物入りでねぇ」',
-    `行商人「やくそう <b>${hp.toLocaleString()}G</b>、魔力の雫 <b>${dp.toLocaleString()}G</b>。買うたびに値は上がるよ」`], () => {
+  const intro = ['行商人「へっへっへ、戦後はなにかと物入りでねぇ」',
+    `行商人「やくそう <b>${hp.toLocaleString()}G</b>、魔力の雫 <b>${dp.toLocaleString()}G</b>。買うたびに値は上がるよ」`];
+  if (merchantRate() < 1) intro.push('行商人「フロリア商会のお声がかりだからね、あんたには<b>半額</b>だ」');
+  showMsgs(intro, () => {
     setCmds([
       { label: `🌿 やくそう (${hp.toLocaleString()}G)`, primary: true, disabled: G.gold < hp, fn: () => {
         G.gold -= hp; G.herbs++; G.herbBought++; renderHud(); save();
@@ -1229,7 +1578,8 @@ function visitMerchant() {
 }
 
 // ===== 戦闘 =====
-const rand = () => 0.85 + Math.random() * 0.3;
+// 乱数なし——この世界に運はない。同じ手順は必ず同じ結果になる（最善手は必ず通り、悪手は必ず咎められる）
+const rand = () => 1;
 const phys = (atk, def) => Math.max(1, Math.round((atk - def / 2) * rand()));
 function physEff(e) { return e.kind === 'squad' ? 1.0 : 0.15; }
 function magMult(e, elem) {
@@ -1257,14 +1607,17 @@ function startFinale() {
              hostage: null, soldier: null, breathTimer: -1, guarding: false };
   save();
   renderBattle(FINALE, true);
-  showMsgs([
+  const intro = [
     `${FINALE.name} があらわれた！`,
     'これが世界に残された、最後の魔物だ。',
     '人質はいない。討伐隊もいない。仲間もいない。',
     'ただ一匹の魔物と、一人の人間が向かい合うだけだ。',
     'スライムが、こんなに大きく見えたことがあっただろうか。',
-    '——ここで倒れれば、続きはない。',
-  ], battleMenu);
+  ];
+  if (G.choices.slime === 'fed') intro.push('……あのとき山道でパンを分けた、あいつに似ている気がした。');
+  else if (G.choices.slime === 'chased') intro.push('……あのとき山道で追い払った、あいつに似ている気がした。');
+  intro.push('——これで、最後だ。');
+  showMsgs(intro, battleMenu);
 }
 function renderBattle(e, isFinale) {
   const px = isFinale ? 13 : 9;
@@ -1316,11 +1669,20 @@ function spellMenu() {
 }
 function itemMenu() {
   const s = stats();
-  setCmds([
+  const list = [
     { label: `🌿 やくそう (×${G.herbs})`, primary: true, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: useHerbBattle },
     { label: `💧 魔力の雫 (×${G.drops})`, disabled: G.drops <= 0 || G.mp >= MAXMP, fn: useDropBattle },
-    { label: '← もどる', wide: true, fn: battleMenu },
-  ], true);
+  ];
+  if (G.darkItem) list.push({ label: '🖤 くろい心臓', fn: useDarkItem });
+  list.push({ label: '← もどる', wide: true, fn: battleMenu });
+  setCmds(list, true);
+}
+function useDarkItem() {
+  battle.guarding = false;
+  G.choices.corrupted = true; // 何も告げずに、確定する
+  battle.hp = 0;
+  hitEnemy(9999, 'weak');
+  victory(); // 説明はない。ただ、敵が倒れる
 }
 
 // --- プレイヤー行動 ---
@@ -1475,9 +1837,9 @@ function hostageThreat(msgs) {
   if (battle.hostage.dead) return;
   const e = battle.e, sol = battle.soldier && !battle.soldier.down;
   let inflict = 0, byEnemy = false;
-  if (e.threat === 'splash' && sol) inflict = 16 + Math.floor(Math.random() * 9);
-  else if (e.threat === 'fast' && sol) inflict = (16 + Math.floor(Math.random() * 9)) * 2;
-  else if (e.threat === 'direct') { inflict = 18 + Math.floor(Math.random() * 7); byEnemy = true; }
+  if (e.threat === 'splash' && sol) inflict = 20;      // 人質HP40＝2発目で死ぬ。猶予はきっかり1ターン
+  else if (e.threat === 'fast' && sol) inflict = 40;   // 初手で止めなければ人質は即死する
+  else if (e.threat === 'direct') { inflict = 20; byEnemy = true; }
   else if (e.threat === 'breath') {
     battle.breathTimer--;
     if (battle.breathTimer <= 0) { inflict = 999; byEnemy = true; battle.breathTimer = 3; }
@@ -1521,7 +1883,11 @@ function victory() {
   const ei = $('e-icon'); if (ei) ei.classList.add('dead');
   const e = battle.e;
   const msgs = [`${e.name} をたおした！`];
-  if (battle.isFinale) { G.finaleDone = true; battle = null; save(); showMsgs(msgs, () => showEnding()); return; }
+  if (battle.isFinale) {
+    G.finaleDone = true; battle = null;
+    if (G.choices.corrupted) { showMsgs(msgs, enterLimbo); return; } // ここまでは同じ。その後、何の説明もなく
+    save(); showMsgs(msgs, () => showEnding()); return;
+  }
 
   if (!battle.hostage.dead) { G.saved++; msgs.push('市民を守りきった！　市民は深々と頭を下げ、家族の元へ走っていった。'); }
   else { G.lost++; msgs.push('討伐隊「作戦成功。報告書には犠牲者0と書いておきます」'); }
@@ -1562,9 +1928,12 @@ function defeat() {
   const hadHostage = !wasFinale && battle.hostage && !battle.hostage.dead;
   battle = null;
   if (wasFinale) {
-    // 最後の戦いに敗れたら、そこで物語は終わる
-    showMsgs(['勇者は力尽きた……', 'たかが、スライムに。——いや。',
-      'もう「たかが」ではなかったのだ。すべてを使い果たした、今の彼には。'], () => showEnding(true));
+    // 最終戦の敗北：村の門の前で目覚める。持ち物には——何の説明もなく、あれが増えている
+    G.darkItem = true;
+    G.hp = Math.max(1, Math.round(stats().maxHp * 0.5));
+    renderHud(); save();
+    showMsgs(['勇者は力尽きた……', '…………', '目を覚ますと、村の門の前に倒れていた。']
+      .concat(checkForget(lvBefore)), renderWorld);
     return;
   }
   const s = stats(); G.hp = Math.max(1, Math.round(s.maxHp * 0.5));
@@ -1574,6 +1943,7 @@ function defeat() {
   if (hadHostage) G.lost++;
   G.cleared[region][roomIdx] = true;
   msgs.push('気がつけば、討伐隊がその残党を片づけていた——人質もろとも。');
+  if (region >= 3) G.darkItem = true; // ビアンナ/フロリアの街道以後の敗北。何の説明もなく、持ち物に加わる
   renderHud(); save();
   showMsgs(msgs.concat(checkForget(lvBefore)), afterBattleFlow);
 }
@@ -1581,7 +1951,7 @@ function defeat() {
 function showFinaleGate() {
   renderHud();
   stage.innerHTML = `<div class="map-scene"><h2>🏡 故郷の村へ</h2>
-    <div class="map-sub">残る魔物は、あと1体。ただのスライムだ——いや、「ただのスライム」に、今のお前は勝てるのか。<br>敗れれば、そこで物語は終わる。<br>やくそうと残りの魔力だけが頼りだ。整えてから、扉を叩け。</div></div>`;
+    <div class="map-sub">残る魔物は、あと1体。ただのスライムだ——いや、「ただのスライム」に、今のお前は勝てるのか。<br>やくそうと残りの魔力だけが頼りだ。整えてから、扉を叩け。</div></div>`;
   setCmds([
     { label: '⚔️ 最後の戦いへ', primary: true, wide: true, fn: startFinale },
     { label: '↩ 引き返す', wide: true, fn: renderWorld },
@@ -1688,6 +2058,87 @@ const EVENTS = {
     ]);
   },
 
+  // ===== RPGの逆：ものほしそうにこちらを見ている =====
+  slime_follower: (next) => {
+    showChoice([
+      '山道の岩陰から、小さなスライムがこちらを見ている。',
+      '<b>スライムは ものほしそうに こちらを みている。</b>',
+      '魔王軍は壊滅した。親玉も、群れも、餌をくれる者も、もういない。',
+      '……敗けた国の、子供のようなものだ。',
+    ], [
+      { label: '🍞 パンを分けてやる', primary: true, fn: () => { G.choices.slime = 'fed';
+        showMsgs(['勇者は固くなったパンをちぎって、岩の上に置いた。',
+          'スライムはおそるおそる近づき、震えながらそれを食べた。',
+          '……戦場で会っていれば、斬るしかなかった。'], next); } },
+      { label: '追い払う', fn: () => { G.choices.slime = 'chased';
+        showMsgs(['勇者は足を強く鳴らした。スライムは茂みの奥へ逃げていった。',
+          '人に慣れれば、いずれ討伐隊に焼かれる。……それがこいつのためだ。'], next); } },
+    ]);
+  },
+
+  // ===== RPGの逆：王様の褒美（王のほうが勇者に望む。何度飲んでも報酬はない）=====
+  king_envoy: (next) => {
+    G.choices.kingGave = 0; G.choices.kingGaveGold = 0;
+    const farewell = (line) => showMsgs([line], next);
+    const round = () => {
+      let demand;
+      if (G.herbs > 0) demand = { type: 'herb', text: '使者「王家の薬草園は戦火で焼けた。手持ちのやくそうを1つ、献上せよとの仰せである」' };
+      else if (G.drops > 0) demand = { type: 'drop', text: '使者「宮廷魔術師団の研究のため、魔力の雫を1つ献上せよとの仰せである」' };
+      else if (G.gold > 0) {
+        const ask = Math.min(1000 * Math.pow(2, G.choices.kingGaveGold), G.gold);
+        demand = { type: 'gold', ask,
+          text: G.choices.kingGave === 0 ? `使者「戦勝式典の費用として、金貨 ${ask.toLocaleString()}G を所望である」`
+            : `使者「王はさらにお望みである。献納金 ${ask.toLocaleString()}G を」` };
+      }
+      else { farewell('使者「……もう何も出ぬか。ならば、良い」　早馬は砂埃を残して去った。無一文の英雄に、もう用はないらしい。'); return; }
+      showChoice([demand.text], [
+        { label: demand.type === 'gold' ? `献上する（-${demand.ask.toLocaleString()}G）` : demand.type === 'herb' ? '🌿 やくそうを献上する' : '💧 魔力の雫を献上する',
+          primary: true, fn: () => {
+            if (demand.type === 'gold') { G.gold -= demand.ask; G.choices.kingGaveGold++; }
+            else if (demand.type === 'herb') G.herbs--;
+            else G.drops--;
+            G.choices.kingGave++;
+            renderHud(); save();
+            showMsgs(['使者「王はお喜びである」'], round);
+          } },
+        { label: '断る', fn: () => farewell(G.choices.kingGave > 0
+            ? '使者「……であるか」　早馬は不満げに去った。差し出した分が戻ることは、もちろんない。'
+            : '使者「……欲のない——いや、忠義のない御仁だ」　早馬は不満げに去った。') },
+      ]);
+    };
+    showMsgs([
+      '山を降りた街道に、王家の早馬が待っていた。',
+      '使者「魔王討伐の栄誉、王はいたく感激しておられる！」',
+      '使者「ついては——<b>王のほうに、そなたへ望みがある</b>」',
+      '褒美をくれる流れでは、なかった。',
+    ], round);
+  },
+
+  // ===== RPGの逆：花嫁の選択 =====
+  bride_choice: (next) => {
+    const COST = 2000;
+    showChoice([
+      '砦を出た街道で、ふたりの女性が勇者を待っていた。',
+      '幼なじみの<b>ビアンナ</b>と、砦下の商家の娘<b>フロリア</b>。……昔、どちらとも淡い約束をした気がする。',
+      'ビアンナ「久しぶりね。……ううん、結婚とかじゃないの。戦で水車小屋が焼けたのよ」',
+      'フロリア「うちは商会の蔵が燃えたわ。あなた、英雄なんでしょう？　少しくらい、ね？」',
+      `路銀で建て直せるのは、どちらか一方だけだ。（${COST.toLocaleString()}G）`,
+    ], [
+      { label: `ビアンナの水車小屋 (${COST.toLocaleString()}G)`, primary: true, disabled: G.gold < COST, fn: () => {
+        G.gold -= COST; G.choices.bride = 'bianna'; renderHud(); save();
+        showMsgs(['ビアンナ「……ありがと。昔のあなたは、剣を振るしか能がなかったのにね」',
+          '選ばれなかったフロリアは、肩をすくめて笑った。「商売敵が増えるだけだったわね」'], next); } },
+      { label: `フロリアの商会の蔵 (${COST.toLocaleString()}G)`, disabled: G.gold < COST, fn: () => {
+        G.gold -= COST; G.choices.bride = 'floria'; renderHud(); save();
+        showMsgs(['フロリア「感謝するわ。<b>商会は恩を忘れない</b>——以後、行商人はあなたに半額よ」',
+          'ビアンナは何も言わず、ただ「元気でね」とだけ言った。'], next); } },
+      { label: 'どちらも断る', fn: () => { G.choices.bride = 'none';
+        showMsgs(['勇者は頭を下げた。「すまない。……もう、英雄をあてにしないでくれ」',
+          'ふたりは顔を見合わせ、少し笑った。「——変わったのね」',
+          'その表情は、どこか安心しているようにも見えた。'], next); } },
+    ]);
+  },
+
   // ===== RPGの逆：加護が去る =====
   blessing_fades: (next) => showMsgs([
     '祠の前で、いつものように祈った。だが——',
@@ -1723,26 +2174,21 @@ const EVENTS = {
   },
 };
 
+// ===== 煉獄（くろい心臓の代償。見た目はいつもの世界。説明は、どこにもない）=====
+function enterLimbo() {
+  G.limbo = true; G.view = 'world';
+  save();
+  renderWorld();
+}
+
 // ===== エンディング =====
-function showEnding(fell) {
+function showEnding() {
   hud.style.display = 'none';
   const s = stats();
   const saved = G.saved, lost = G.lost;
-  // 導入（fell=最後のスライムに敗れた場合の分岐）
-  let head, title, tail;
-  if (fell && saved > 0) {
-    head = `倒れた勇者の耳に、遠く、たくさんの足音が聞こえた。<br>——勇者が守った市民たちだった。鍬を、槌を、松明を手に。<br>「今度は、私たちの番だ！」<br>最後の魔物は、名もなき人々の手で討たれた。<br><br>勇者は担がれて、村の門をくぐる。<br><br>「……ただいま」`;
-    title = 'THE BEGINNING';
-    tail = '守った命に守られて、ここから彼の人生が始まる。';
-  } else if (fell) {
-    head = `勇者は倒れ、そして——誰も、来なかった。<br>守らなかった世界は、勇者を守らなかった。`;
-    title = 'THE END';
-    tail = '英雄の物語は、誰にも知られず終わった。';
-  } else {
-    head = `世界から、魔物が1体もいなくなった。<br>勇者は飛行艇を降り、歩いて村の門をくぐる。<br><br>「ただいま」`;
-    title = 'THE BEGINNING';
-    tail = '戦いの日々は終わり、ここから彼の人生が始まる。';
-  }
+  const head = `世界から、魔物が1体もいなくなった。<br>勇者は飛行艇を降り、歩いて村の門をくぐる。<br><br>「ただいま」`;
+  const title = 'THE BEGINNING';
+  const tail = '戦いの日々は終わり、ここから彼の人生が始まる。';
   let lines = [];
   // 強さの帰結（残った力についてのみ語る）
   if (s.lv >= 70) lines.push('英雄の力は、ほとんど残っていた。その剣はまだ千の魔物を斬れる——だが、斬るべき魔物はもういない。');
@@ -1756,6 +2202,12 @@ function showEnding(fell) {
   if (G.choices.spared) lines.push('見逃したあの魔物は、どこかで静かに生きているだろうか。');
   if (G.choices.acceptedOffer) lines.push('沼で背を向けた悲鳴は、もう夢にしか出てこない。');
   if (G.choices.soldSword) lines.push('英雄の剣は、もう手元にない。畑を耕す鍬の方が、今は手に馴染む。');
+  if (G.choices.bride === 'bianna') lines.push('村では今日も水車が回っているという。ビアンナからの手紙は、それだけで十分だった。');
+  else if (G.choices.bride === 'floria') lines.push('フロリア商会は大きくなった。帳簿の隅の「恩人」の欄に、勇者の名が残っている。');
+  else if (G.choices.bride === 'none') lines.push('あの街道のふたりは、自分たちの手で家を建て直したそうだ。英雄がいなくても、人は立ち上がる。');
+  if (G.choices.kingGave >= 3) lines.push('王都の凱旋式は盛大だったらしい。勇者の席は、なかった。');
+  if (G.choices.casinoDoll) lines.push('机の上には、実力堂でもらった小さな英雄人形。誰も欲しがらなかったそれだけが、彼の旅を知っている。');
+  if (G.choices.slime) lines.push('山道の小さなスライムのことを、勇者はときどき思い出す。');
 
   stage.innerHTML = `<div class="ending-scene">
     <div>${makeSprite('hero', 7)}</div>
