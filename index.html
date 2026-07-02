@@ -1885,7 +1885,14 @@ function victory() {
   const msgs = [`${e.name} をたおした！`];
   if (battle.isFinale) {
     G.finaleDone = true; battle = null;
-    if (G.choices.corrupted) { showMsgs(msgs, enterLimbo); return; } // ここまでは同じ。その後、何の説明もなく
+    if (G.choices.corrupted) {
+      // ここまでは同じ。その後、ゲームが訊いてこないはずのことを訊いてくる
+      showMsgs(msgs, () => showChoice(['本当にクリアしますか？'], [
+        { label: 'はい', primary: true, fn: enterLimbo },
+        { label: 'いいえ', fn: showGameOver },
+      ]));
+      return;
+    }
     save(); showMsgs(msgs, () => showEnding()); return;
   }
 
@@ -2179,6 +2186,12 @@ function enterLimbo() {
   G.limbo = true; G.view = 'world';
   save();
   renderWorld();
+}
+function showGameOver() {
+  hud.style.display = 'none'; msgwin.style.display = 'none';
+  clearSave();
+  stage.innerHTML = `<div class="ending-scene"><div class="the-beginning" style="color:#8a8a9a">GAME OVER</div></div>`;
+  setCmds([{ label: 'タイトルへ', wide: true, fn: () => { G = null; showTitle(); } }], true);
 }
 
 // ===== エンディング =====
