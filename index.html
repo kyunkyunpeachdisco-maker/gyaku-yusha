@@ -26,12 +26,17 @@
   .sprite { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
   .title-scene { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; text-align: center; }
   .title-scene h1 { font-size: 44px; letter-spacing: 10px; color: #ffd23b; text-shadow: 3px 3px 0 #000, 0 0 18px rgba(255,210,59,0.4); }
-  .title-scene .sub { color: #b6b6d8; font-size: 15px; letter-spacing: 1px; }
+  .title-scene .sub { color: #b6b6d8; font-size: 15px; letter-spacing: 1px; padding: 0 14px; }
   .title-scene .spr { margin: 4px 0; }
   .battle-scene { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; }
   .enemy-icon { line-height: 1; }
   .enemy-icon.shake { animation: shake 0.3s; }
   .enemy-icon.dead { opacity: 0; transform: translateY(8px); transition: opacity 0.55s, transform 0.55s; }
+  .enemy-icon .sprite { animation: idle 2.4s ease-in-out infinite; }
+  @keyframes idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  .enemy-shadow { width: 96px; height: 12px; margin: 0 auto; border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.65), transparent 70%); }
+  .spr.charging { filter: drop-shadow(0 0 10px rgba(255,70,20,0.95)) brightness(1.12); }
   .spr.flash { animation: ewhite 0.2s; }
   @keyframes ewhite { 0%,100% { filter: none; } 40% { filter: brightness(3.5) saturate(0.2); } }
   @keyframes shake { 0%,100% { transform: translateX(0);} 25%{transform:translateX(-9px);} 75%{transform:translateX(9px);} }
@@ -48,6 +53,7 @@
   .dmgnum { position: absolute; left: 50%; top: 26%; font-weight: bold; font-size: 28px; color: #fff;
     text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000; pointer-events: none; animation: dn 0.7s ease-out forwards; }
   .dmgnum.heal { color: #6cf06c; } .dmgnum.weak { color: #ffd23b; } .dmgnum.resist { color: #8a8a9a; }
+  .dmgnum.me { top: auto; bottom: 26%; color: #ff8a8a; font-size: 24px; }
   @keyframes dn { 0%{opacity:0;transform:translate(-50%,8px) scale(0.6);} 25%{opacity:1;transform:translate(-50%,-6px) scale(1.15);} 100%{opacity:0;transform:translate(-50%,-38px) scale(1);} }
   .map-scene h2 { color: #ffd23b; font-size: 18px; margin-bottom: 4px; letter-spacing: 1px; }
   .map-scene .map-sub { color: #b6b6d8; font-size: 13px; margin-bottom: 14px; line-height: 1.6; }
@@ -115,7 +121,7 @@ const SPRITES = {
   "deathknight": { "pal": {"A":"#4a4e63","D":"#23252f","H":"#9aa0bd","R":"#ff4d4d","S":"#c6cad6"},
     "rows": ["....HHHHHH......","...HAAAAAAH..S..","...HAAAAAAH..S..","...DRRDDRRD.SS..","...DAAAAAAD.SS..","...HAAAAAAH.SS..","..HHAAAAAAHHS...",".AAAAAAAAAAAS...","AAAAAAAAAAAAS...","AAADAAAAADAAA...","AAADAAAAADAAA...",".AADAAAAADAA....","..ADAAAAADA.....","..AD......DA...."] },
   "dragon": { "pal": {"G":"#3f9b54","D":"#1f4a2b","B":"#7fd98f","R":"#ff5a3c","Y":"#ffe24a","W":"#ffffff"},
-    "rows": [".RR.............","..RRGG..........","..GGGGGG........",".GGGGGGGGG......",".GGGGGGGGGGG....","GGGYYGGGGGGGGG..","GGGYYGGGGGGGGDRR","GGGGGGGGGGGGGGGR","GGGGGGWWWWWWWW..",".GGGGGGGGGGGGW..",".GGGGGGGGGGGG...","..BBGGGGGG......","...BBGGG........","....GGG........."] },
+    "rows": ["....W.....DD....","...GG....DDDD...","..GYGG...DDDDD.W",".GGGGG..DDDDDDDG","RRGGGGG.DDDDDDDG",".RGGGGGGGDDDDDDG","..GGGGGGGGGGGGGG","..GGGGGGGGGGGGG.","..GGBBBBGGGGGG..","...GGBBBBGGGGG..","...GGGBBGGGGG...","....GGGGGGGG....","....GG...GG.....","...WWW..WWW....."] },
   "durahan": { "pal": {"A":"#3a3e57","D":"#16182a","H":"#6a7099","G":"#7affd0","S":"#c6cad6"},
     "rows": ["...H......H.....","..HAH....HAH....",".HAAAH..HAAAH...",".HAAAAGGAAAAH...",".HAAAGGGGAAAH...","HAAAAGGGGAAAAH..","AAAAAGGGGAAAAA..","AAAADAAAADAAAA..","AAAADAAAADAAAA..",".AAADAAAADAAA...",".AAADAAAADAAA...","..AADAAAADAA....","..AD......DA....","..D........D...."] },
   "demonking": { "pal": {"P":"#5b2a6b","D":"#2a1230","R":"#ff3b3b","H":"#8a3aa0","K":"#15101a"},
@@ -125,9 +131,9 @@ const SPRITES = {
   "wraith": { "pal": {"C":"#3f6a86","G":"#9fd8ec","E":"#ffffff","D":"#243a4a"},
     "rows": ["......CCCC......","....CCCCCCCC....","...CCCCCCCCCC...","...CCGGGGGGCC...","..CCGGEEGGEEGCC.","..CCGGGGGGGGCC..","..CCCGGGGGGCCC..","..CCCGGGGGGCCC..","...CCGGGGGGCC...","...CCGGGGGGCC...","....CCGGGGCC....",".....CGGGGC.....","....C.GGGG.C....",".....G.GG.G....."] },
   "icedrake": { "pal": {"G":"#5aa0d8","D":"#2a5a8a","B":"#dff2ff","R":"#9fe0ff","Y":"#ffffff","W":"#eaffff"},
-    "rows": [".RR.............","..RRGG..........","..GGGGGG........",".GGGGGGGGG......",".GGGGGGGGGGG....","GGGYYGGGGGGGGG..","GGGYYGGGGGGGGDRR","GGGGGGGGGGGGGGGR","GGGGGGWWWWWWWW..",".GGGGGGGGGGGGW..",".GGGGGGGGGGGG...","..BBGGGGGG......","...BBGGG........","....GGG........."] },
+    "rows": ["....W.....DD....","...GG....DDDD...","..GYGG...DDDDD.W",".GGGGG..DDDDDDDG","RRGGGGG.DDDDDDDG",".RGGGGGGGDDDDDDG","..GGGGGGGGGGGGGG","..GGGGGGGGGGGGG.","..GGBBBBGGGGGG..","...GGBBBBGGGGG..","...GGGBBGGGGG...","....GGGGGGGG....","....GG...GG.....","...WWW..WWW....."] },
   "scorpion": { "pal": {"M":"#6a7a92","C":"#8a9ab2","D":"#2a3240","R":"#ff5a5a"},
-    "rows": ["............RR..","..........MMMR..",".........MM.....","........MM......","CC.....MMM......","CCC...MMMMM.....",".CCC.MMMMMMM....","..MMMMMMMMMMM...","..MMMRRMMRRMM...","..MMMMMMMMMMM...","..M.MM.MM.MM.M..",".M.............."] },
+    "rows": ["...........RRR..","..........MMRR..",".........MMM....",".CC......MMM....","CCCC....MMM.....","CC.C..MMMMMM....",".CCCMMMMMMMMM...","..MMMDDMMDDMM...","..MMMMMMMMMMMM..",".CCCMMMMMMMMM...","CCCC.MM.MM.MM...","CC...M...M...M.."] },
   "mandragora": { "pal": {"L":"#7ac84a","S":"#cfe0a0","K":"#1a2a10","D":"#3a5a2a","G":"#5a9a3a"},
     "rows": [".....L.LL.L.....","...LLLLLLLLLL...","..LL.LLLL.LL....","....SSSSSSSS....","...SSSSSSSSSS...","..SSKKSSSSKKSS..","..SSSSSSSSSSSS..","..SSSKKKKKKSSS..","..SSSKKKKKKSSS..","...SSSSSSSSSS...","....S.SSSS.S....","...S..S..S..S..."] },
   "harpy": { "pal": {"W":"#c8ccd4","F":"#9a6a3a","S":"#e8b88a","H":"#5a3a1a","K":"#2a2c38","R":"#ff5a5a"},
@@ -219,11 +225,13 @@ function makeSprite(key, px) {
 }
 
 // ===== 定数 =====
-const SAVE_KEY = 'gyaku-rpg-save-v3';
+const SAVE_KEY = 'gyaku-rpg-save-v5';
 const HERB_HEAL_RATE = 0.4;
-const HERB_BASE_PRICE = 300;
-const WEAR_PER_HIT = 1.4;       // 被弾1回でレベルが下がる量（恒久）
-const MAXMP = 260;              // 魔力＝有限。戦闘では回復しない（使い切り）
+const HERB_BASE_PRICE = 600;
+const DROP_BASE_PRICE = 2000;   // 魔力の雫の初値（買うたび倍）
+const DROP_MP = 35;             // 雫1つで戻る魔力
+const WEAR_PER_HIT = 2.6;       // 被弾1回でレベルが下がる量（恒久）。摩耗は被弾からのみ生まれる
+const MAXMP = 180;              // 魔力＝有限。「無傷で仕留める」手段はこの残量が上限
 const REST_MP = 0.0;            // 魔力は戦線移動でも戻らない
 
 // じゅもん・とくぎ（独自名。被弾で弱るほど強い技から使えなくなる）
@@ -238,27 +246,28 @@ const SPELLS = [
 // kind: squad=討伐隊が倒せる/物理有効, magic=魔法のみ, fire/thunder=その属性に弱い, regen=毎ターン再生
 // threat: splash=討伐隊の流れ弾(みねうちで停止) / fast=2倍流れ弾 / direct=敵が人質を直接攻撃 / breath=数ターン毎に人質を焼く
 const ENEMIES = {
-  durahan:    { name:'魔王親衛隊デュラハン', sprite:'durahan',     hp:680, atk:230, def:140, kind:'squad',   threat:'splash', counter:true,  gold:3000,
-                tag:'物理に反撃', hint:['物理で斬りかかると反撃を受ける。','「みねうち」で暴走兵を止め、討伐隊に任せるのが安全だ。'] },
-  golem:      { name:'ヘルゴーレム',         sprite:'golem',       hp:600, atk:170, def:170, kind:'magic',   threat:'splash', counter:false, gold:2800,
-                tag:'物理無効', hint:['岩の体に刃も討伐隊も通らない。','じゅもんでしか倒せない。'] },
-  dragon:     { name:'エンシェントドラゴン', sprite:'dragon',      hp:540, atk:175, def:110, kind:'squad',   threat:'breath', counter:false, gold:2500,
+  durahan:    { name:'魔王親衛隊デュラハン', sprite:'durahan',     hp:680, atk:230, def:140, kind:'squad',   threat:'splash', counter:true,  gold:800,
+                tag:'物理に反撃', hint:['物理で斬りかかると反撃を受ける。','「みねうち」で流れ弾は止まるが、討伐隊の攻撃も止まる。','守り切るなら、じゅもんか覚悟の剣で自ら仕留めろ。'] },
+  golem:      { name:'ヘルゴーレム',         sprite:'golem',       hp:600, atk:170, def:170, kind:'magic',   threat:'splash', counter:false, gold:700,
+                tag:'物理無効', hint:['岩の体に刃も討伐隊も通らない。','じゅもんでしか倒せない。魔力を惜しむな。'] },
+  dragon:     { name:'エンシェントドラゴン', sprite:'dragon',      hp:540, atk:175, def:110, kind:'squad',   threat:'breath', counter:false, gold:650,
                 tag:'ブレス予告', hint:['数ターンごとにブレスで人質を焼く。','予告が出たら「かばう」か、その前に倒し切れ。'] },
-  icedrake:   { name:'アイスドレイク',       sprite:'icedrake',    hp:470, atk:155, def:100, kind:'fire',    threat:'splash', counter:false, gold:2300,
+  icedrake:   { name:'アイスドレイク',       sprite:'icedrake',    hp:470, atk:155, def:100, kind:'fire',    threat:'splash', counter:false, gold:600,
                 tag:'炎が弱点', hint:['氷の鱗は「フレイ（炎）」に弱い。','ライガはほとんど効かない。'] },
-  deathknight:{ name:'デスナイト',           sprite:'deathknight', hp:380, atk:120, def:135, kind:'magic',   threat:'direct', counter:false, gold:2000,
-                tag:'重装甲・人質を直接狙う', hint:['重装甲で物理はほぼ無効。','討伐隊を無視して人質を斬る。じゅもんで急げ。'] },
-  scorpion:   { name:'メタルスコルピオン',   sprite:'scorpion',    hp:340, atk:110, def:95,  kind:'thunder', threat:'splash', counter:false, gold:1800,
+  deathknight:{ name:'デスナイト',           sprite:'deathknight', hp:380, atk:120, def:135, kind:'magic',   threat:'direct', counter:false, gold:500,
+                tag:'重装甲・人質を直接狙う', hint:['重装甲で物理も討伐隊も通らない。','討伐隊を無視して人質を斬る。じゅもんで急げ。'] },
+  scorpion:   { name:'メタルスコルピオン',   sprite:'scorpion',    hp:340, atk:110, def:95,  kind:'thunder', threat:'splash', counter:false, gold:450,
                 tag:'雷が弱点', hint:['金属の殻は「ライガ（雷）」に弱い。','フレイは効きが悪い。'] },
-  wraith:     { name:'レイス',               sprite:'wraith',      hp:250, atk:95,  def:60,  kind:'magic',   threat:'direct', counter:false, gold:1500,
+  wraith:     { name:'レイス',               sprite:'wraith',      hp:250, atk:95,  def:60,  kind:'magic',   threat:'direct', counter:false, gold:400,
                 tag:'物理すり抜け・人質に取り憑く', hint:['物理はすり抜ける。討伐隊は無力。','取り憑く前にじゅもんで祓え。'] },
-  mandragora: { name:'マンドラゴラ',         sprite:'mandragora',  hp:230, atk:70,  def:50,  kind:'regen',   threat:'splash', counter:false, gold:1300,
+  mandragora: { name:'マンドラゴラ',         sprite:'mandragora',  hp:230, atk:70,  def:50,  kind:'regen',   threat:'splash', counter:false, gold:350,
                 tag:'毎ターン再生', hint:['チマチマ削っても再生で追いつかない。','強い一撃で一気に落とせ。'] },
-  wolf:       { name:'キラーウルフ',         sprite:'wolf',        hp:190, atk:60,  def:35,  kind:'squad',   threat:'fast',   counter:false, gold:1100,
+  wolf:       { name:'キラーウルフ',         sprite:'wolf',        hp:190, atk:60,  def:35,  kind:'squad',   threat:'fast',   counter:false, gold:300,
                 tag:'2回行動', hint:['素早く、人質はあっという間に死ぬ。','初手で「みねうち」だ。'] },
-  harpy:      { name:'ハーピー',             sprite:'harpy',       hp:160, atk:55,  def:30,  kind:'squad',   threat:'direct', counter:false, gold:1000,
+  harpy:      { name:'ハーピー',             sprite:'harpy',       hp:160, atk:55,  def:30,  kind:'squad',   threat:'direct', counter:false, gold:250,
                 tag:'人質を直接さらう', hint:['空から人質を直接襲う。','「かばう」か、早めに討伐隊と倒し切れ。'] },
 };
+// 最終戦。スライム自体はごく普通の魔物——強いか弱いかは、勇者に何が残っているか次第
 const FINALE = { name:'さいごのスライム', sprite:'slime', hp:60, atk:8, def:5, kind:'squad' };
 
 // ===== 地域（有限の出撃順）＋イベント =====
@@ -347,7 +356,7 @@ let msgQueue = [], msgDone = null;
 
 function newGame() {
   return {
-    wear: 0, hp: 0, mp: MAXMP, gold: 50000, herbs: 5, herbBought: 0,
+    wear: 0, hp: 0, mp: MAXMP, gold: 15000, herbs: 5, herbBought: 0, drops: 0, dropBought: 0,
     cleared: REGIONS.map((r) => r.list.map(() => false)),
     saved: 0, lost: 0, opened: false, finaleDone: false, descended: false,
     party: PARTY.slice(),
@@ -372,6 +381,7 @@ const remaining = () => { let n = G.finaleDone ? 0 : 1; G.cleared.forEach((a) =>
 const roomAt = (ri, x, y) => REGIONS[ri]._maze.rooms.findIndex((p) => p[0] === x && p[1] === y);
 const walkableD = (ri, x, y) => { const g = REGIONS[ri]._maze.grid; return g[y] && g[y][x] && g[y][x] !== '#'; };
 const herbPrice = () => HERB_BASE_PRICE * Math.pow(2, G.herbBought);
+const dropPrice = () => DROP_BASE_PRICE * Math.pow(2, G.dropBought);
 const spellAvailable = (sp) => lvOf() >= sp.minLv;
 
 // ===== セーブ =====
@@ -392,7 +402,7 @@ function renderHud() {
     <div class="row">
       <span>勇者 Lv.${s.lv}</span>
       <span class="zanto">残党 あと${remaining()}体</span>
-      <span>💰 ${G.gold.toLocaleString()}G　🌿 ×${G.herbs}</span>
+      <span>💰 ${G.gold.toLocaleString()}G　🌿 ×${G.herbs}　💧 ×${G.drops}</span>
     </div>
     <div class="row">
       <div class="barwrap"><span>HP ${Math.max(0,G.hp)}/${s.maxHp}</span>
@@ -449,7 +459,14 @@ function showTitle() {
       <div class="sub">敵は有限。すべて殲滅したら、物語は終わる。</div>
     </div>`;
   const saved = load();
-  const list = [{ label: 'はじめから', primary: true, wide: !saved, fn: () => { clearSave(); G = newGame(); showOpening(); } }];
+  const startNew = () => { clearSave(); G = newGame(); showOpening(); };
+  const list = [{ label: 'はじめから', primary: true, wide: !saved, fn: () => {
+    if (!saved) return startNew();
+    showChoice(['セーブデータが残っています。', '消して、最初からはじめますか？'], [
+      { label: '消してはじめる', fn: startNew },
+      { label: 'やめる', fn: showTitle },
+    ]);
+  } }];
   if (saved) list.push({ label: 'つづきから', fn: () => { G = Object.assign(newGame(), saved); renderHud(); renderScene(); } });
   setCmds(list, true);
 }
@@ -559,7 +576,7 @@ function backToWorld(ri) {
   renderWorld();
 }
 function tryFinale() {
-  if (allRegionsDone()) startFinale();
+  if (allRegionsDone()) showFinaleGate();
   else showMsgs(['まだ残党が残っている。村へは帰れない。'], renderWorld);
 }
 
@@ -698,8 +715,8 @@ function puzzleFrame(title, body, controls, sub, onSwipe) {
 }
 function puzzleQuit() { PZ = null; renderDungeon(); }
 function puzzleSolved() {
-  G.puzzleSolved[PZ.type] = true; G.herbs += 2; PZ = null; renderHud(); save();
-  showMsgs(['🎉 封印が解けた！　宝箱が開く。', 'やくそうを2つ手に入れた。'], () => renderDungeon());
+  G.puzzleSolved[PZ.type] = true; G.herbs += 1; PZ = null; renderHud(); save();
+  showMsgs(['🎉 封印が解けた！　宝箱が開く。', 'やくそうを1つ手に入れた。'], () => renderDungeon());
 }
 // --- 残党の多頭大蛇（中身はニム/石取り）: 残党との頭脳戦。勝てば撃退、負ければ返り討ち ---
 function orochiIntro(ri) {
@@ -738,24 +755,24 @@ function orochiCut(i, n) {
 }
 function orochiWin() {
   const before = lvOf(); G.puzzleSolved[PZ.type] = true; PZ = null;
-  G.wear = Math.max(0, G.wear - 4); G.herbs += 2;
+  G.wear = Math.max(0, G.wear - 4); G.herbs += 1;
   const after = lvOf(); renderHud(); save();
   showMsgs([
     '最後の首が地に落ちた。大蛇は力尽き、頭目は舌打ちして退いていく。',
     after > before ? `頭脳戦を制した昂りで、体に力がみなぎる。レベルが ${after} に回復した！` : '頭脳戦を制し、体に力がみなぎった。',
-    '残党が遺した荷から、やくそうを2つ見つけた。',
+    '残党が遺した荷から、やくそうを1つ見つけた。',
   ], () => renderDungeon());
 }
 function orochiLose() {
   const before = lvOf(); G.puzzleSolved[PZ.type] = true; PZ = null;
   G.wear += 4;
-  const s = stats(); G.hp = Math.min(G.hp, s.maxHp); G.mp = Math.min(G.mp, s.maxMp);
+  const s = stats(); G.hp = Math.min(G.hp, s.maxHp);
   const after = lvOf(); renderHud(); save();
   showMsgs([
     '最後の首を喰い切ったのは、頭目に操られた大蛇のほうだった。',
     `頭目「読み負けたな」——振り抜かれた尾に打ち据えられ、英雄の力が削れる。レベルが ${after} に下がった……`,
     '（被弾と同じだ。失った強さは戻らない）',
-  ], () => renderDungeon());
+  ].concat(checkForget(before)), () => renderDungeon());
 }
 // --- スフィンクスの匣（ブラックボックス）: 隠れた3つの石を光線で推理する ---
 const BB_N = 6;
@@ -1171,9 +1188,13 @@ function mapMenu(inDungeon, ctx) {
   if (ctx && ctx.descend) list.push({ label: '🔻 階段をおりる', primary: true, wide: true, fn: descendStairs });
   list.push({ label: `🌿 やくそう (×${G.herbs})`, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: () => {
     const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * HERB_HEAL_RATE)); G.herbs--; G.hp += heal;
-    renderHud(); showMsgs([`やくそうを使った。HPが ${heal} 回復した。`], renderScene);
+    renderHud(); save(); showMsgs([`やくそうを使った。HPが ${heal} 回復した。`], renderScene);
   } });
-  if (!inDungeon) list.push({ label: `💰 行商人 (${herbPrice().toLocaleString()}G)`, fn: visitMerchant });
+  list.push({ label: `💧 魔力の雫 (×${G.drops})`, disabled: G.drops <= 0 || G.mp >= MAXMP, fn: () => {
+    const r = Math.min(MAXMP - G.mp, DROP_MP); G.drops--; G.mp += r;
+    renderHud(); save(); showMsgs([`魔力の雫を使った。魔力が ${r} 回復した。`], renderScene);
+  } });
+  if (!inDungeon) list.push({ label: '💰 行商人', fn: visitMerchant });
   list.push({ label: '🛡 そうび／仲間', wide: true, fn: showStatus });
   setCmds(list, true);
 }
@@ -1184,20 +1205,25 @@ function showStatus() {
     `<b>そうび</b>`,
     `英雄の剣　こうげき +${s.eqAtk}／英雄のよろい　しゅび +${s.eqDef}`,
     `削れるほど武具の輝きも鈍る。レベルが下がれば、やがてただの鉄に。`,
+    `力を守る道はふたつ。手を出さず見捨てるか、魔力で一撃で仕留めるか——刃を交えれば、そのたび確実に削れる。`,
     `<b>仲間</b>：${party}`,
-    `魔力（じゅもん）は有限。戦いでは戻らない。使いどころを選べ。`,
+    `魔力（じゅもん）は有限。戦いでは戻らない。頼れるのは行商人の「魔力の雫」だけだ。`,
   ], renderScene);
 }
 function visitMerchant() {
-  const price = herbPrice();
-  showMsgs(['行商人「へっへっへ、やくそうだよ。戦後はなにかと物入りでねぇ」',
-    `行商人「いまなら <b>${price.toLocaleString()}G</b>！　明日はもっと高いよ」`], () => {
+  const hp = herbPrice(), dp = dropPrice();
+  showMsgs(['行商人「へっへっへ、戦後はなにかと物入りでねぇ」',
+    `行商人「やくそう <b>${hp.toLocaleString()}G</b>、魔力の雫 <b>${dp.toLocaleString()}G</b>。買うたびに値は上がるよ」`], () => {
     setCmds([
-      { label: `買う (${price.toLocaleString()}G)`, primary: true, disabled: G.gold < price, fn: () => {
-        G.gold -= price; G.herbs++; G.herbBought++; renderHud();
-        showMsgs(['やくそうを手に入れた。', '行商人「毎度あり！　次はこの倍だよ」'], renderScene);
+      { label: `🌿 やくそう (${hp.toLocaleString()}G)`, primary: true, disabled: G.gold < hp, fn: () => {
+        G.gold -= hp; G.herbs++; G.herbBought++; renderHud(); save();
+        showMsgs(['やくそうを手に入れた。', '行商人「毎度あり！　次はこの倍だよ」'], visitMerchant);
       } },
-      { label: 'やめる', fn: renderScene },
+      { label: `💧 魔力の雫 (${dp.toLocaleString()}G)`, disabled: G.gold < dp, fn: () => {
+        G.gold -= dp; G.drops++; G.dropBought++; renderHud(); save();
+        showMsgs(['魔力の雫を手に入れた。', '行商人「じゅもんの使いすぎにご用心。次はこの倍だよ」'], visitMerchant);
+      } },
+      { label: 'やめる', wide: true, fn: renderScene },
     ], true);
   });
 }
@@ -1211,13 +1237,15 @@ function magMult(e, elem) {
   if (e.kind === 'thunder') return elem === 'thunder' ? 2.0 : 0.4;
   return 1.0; // magic / regen / squad はどの属性でも等倍
 }
-function squadDps(e) { return e.kind === 'squad' ? Math.round(e.hp * 0.14) : Math.round(e.hp * 0.07); }
+// 討伐隊の火力：物理無効（magic）にはまったく通らない
+function squadDps(e) { return e.kind === 'magic' ? 0 : e.kind === 'squad' ? Math.round(e.hp * 0.14) : Math.round(e.hp * 0.07); }
 
 function startBattle(key, region, roomIdx) {
   const e = ENEMIES[key];
   battle = { key, e, isFinale: false, region, roomIdx, lvStart: lvOf(), hp: e.hp, maxHp: e.hp,
              hostage: { hp: 40, max: 40, dead: false }, soldier: { down: false },
              breathTimer: (e.threat === 'breath' ? 3 : -1), guarding: false };
+  save();
   renderBattle(e, false);
   let intro = [`${e.name} があらわれた！`, `${e.name}は市民を人質に取っている！`];
   if (!G.seenHint[key]) { G.seenHint[key] = true; intro = intro.concat(e.hint); }
@@ -1227,6 +1255,7 @@ function startBattle(key, region, roomIdx) {
 function startFinale() {
   battle = { key: 'finale', e: FINALE, isFinale: true, lvStart: lvOf(), hp: FINALE.hp, maxHp: FINALE.hp,
              hostage: null, soldier: null, breathTimer: -1, guarding: false };
+  save();
   renderBattle(FINALE, true);
   showMsgs([
     `${FINALE.name} があらわれた！`,
@@ -1234,6 +1263,7 @@ function startFinale() {
     '人質はいない。討伐隊もいない。仲間もいない。',
     'ただ一匹の魔物と、一人の人間が向かい合うだけだ。',
     'スライムが、こんなに大きく見えたことがあっただろうか。',
+    '——ここで倒れれば、続きはない。',
   ], battleMenu);
 }
 function renderBattle(e, isFinale) {
@@ -1249,6 +1279,7 @@ function renderBattle(e, isFinale) {
   }
   stage.innerHTML = `<div class="battle-scene">
       <div class="enemy-icon" id="e-icon"><div class="spr" id="e-spr">${makeSprite(e.sprite, px)}</div></div>
+      <div class="enemy-shadow"></div>
       <div class="enemy-name">${e.name}</div>
       ${e.tag && !isFinale ? `<div class="enemy-tag">【${e.tag}】</div>` : ''}
       <div class="bar hp enemy-hpbar"><div id="e-hp" style="width:100%"></div></div>
@@ -1261,7 +1292,7 @@ function battleMenu() {
     { label: '⚔️ たたかう', primary: true, fn: playerAttack },
     { label: '✨ じゅもん', fn: spellMenu },
     { label: '🎒 どうぐ', fn: itemMenu },
-    { label: '🛡 ぼうぎょ', fn: playerDefend },
+    { label: '👀 ようすをみる', fn: playerDefend },
   ];
   if (!battle.isFinale) {
     if (battle.soldier && !battle.soldier.down)
@@ -1272,11 +1303,13 @@ function battleMenu() {
   setCmds(list, true);
 }
 function spellMenu() {
+  const s = stats();
   const list = SPELLS.map((sp) => {
     const weak = lvOf() < sp.minLv, noMp = G.mp < sp.mp;
+    const full = sp.kind === 'heal' && G.hp >= s.maxHp;
     let label = `${sp.name}（魔力${sp.mp}）`;
     if (weak) label = `${sp.name}（力不足）`;
-    return { label, disabled: weak || noMp, fn: () => castSpell(sp) };
+    return { label, disabled: weak || noMp || full, fn: () => castSpell(sp) };
   });
   list.push({ label: '← もどる', wide: true, fn: battleMenu });
   setCmds(list, true);
@@ -1285,7 +1318,8 @@ function itemMenu() {
   const s = stats();
   setCmds([
     { label: `🌿 やくそう (×${G.herbs})`, primary: true, disabled: G.herbs <= 0 || G.hp >= s.maxHp, fn: useHerbBattle },
-    { label: '← もどる', fn: battleMenu },
+    { label: `💧 魔力の雫 (×${G.drops})`, disabled: G.drops <= 0 || G.mp >= MAXMP, fn: useDropBattle },
+    { label: '← もどる', wide: true, fn: battleMenu },
   ], true);
 }
 
@@ -1312,7 +1346,7 @@ function castSpell(sp) {
   const s = stats(), e = battle.e;
   G.mp -= sp.mp; const msgs = [sp.flavor];
   if (sp.kind === 'heal') {
-    const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * sp.power)); G.hp += heal;
+    const heal = Math.max(0, Math.min(s.maxHp - G.hp, Math.round(s.maxHp * sp.power))); G.hp += heal;
     spawnDamage(heal, 'heal'); msgs.push(`HPが ${heal} 回復した。`); renderHud();
     resolveTurn(msgs, false); return; // 回復は反撃を受けない
   }
@@ -1333,8 +1367,14 @@ function castSpell(sp) {
     if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
     resolveTurn(msgs, false); return;
   }
-  // じゅもん（遠隔）は反撃を受けない。物理技は受ける
-  resolveTurn(msgs, sp.kind === 'phys');
+  // 攻撃じゅもんも敵の注意を引く（手を出せば狙われる）
+  resolveTurn(msgs, true);
+}
+function useDropBattle() {
+  battle.guarding = false;
+  const r = Math.min(MAXMP - G.mp, DROP_MP); G.drops--; G.mp += r;
+  renderHud();
+  resolveTurn([`魔力の雫を使った。魔力が ${r} 回復した。`], false);
 }
 function useHerbBattle() {
   battle.guarding = false;
@@ -1345,18 +1385,18 @@ function useHerbBattle() {
 }
 function playerDefend() {
   battle.guarding = false;
-  resolveTurn(['勇者は身を守っている。'], false); // 防御＝攻撃しない＝反撃なし。討伐隊に任せる
+  resolveTurn(['勇者は手を出さず、様子をうかがっている。'], false); // 手を出さない＝狙われない
 }
 function playerMineuchi() {
   battle.guarding = false;
   battle.soldier.down = true;
   const ua = $('u-ally'); if (ua) ua.classList.add('out');
   const as = $('a-state'); if (as) { as.textContent = '気絶'; as.classList.remove('warn'); }
-  resolveTurn(['勇者のみねうち！　当て身で討伐隊の兵士を気絶させた！', 'これで流れ弾は止まった。', '兵士「ぐ……なぜ、味方の私を……」'], true);
+  resolveTurn(['勇者のみねうち！　当て身で討伐隊の兵士を気絶させた！', '流れ弾は止まった——だが討伐隊は救護にかかりきりだ。もう頼れない。', '兵士「ぐ……なぜ、味方の私を……」'], true);
 }
 function playerGuard() {
   battle.guarding = true;
-  resolveTurn(['勇者は人質の前に立ちはだかった！'], true);
+  resolveTurn(['勇者は人質の前に立ちはだかった！（身をさらすため、敵の攻撃も受ける）'], true);
 }
 function sacrificeBattle() {
   const e = battle.e, region = battle.region, roomIdx = battle.roomIdx;
@@ -1372,7 +1412,11 @@ function sacrificeBattle() {
 }
 
 // --- 被弾＝恒久ステ低下 ---
-function takeHit(d) { G.hp = Math.max(0, G.hp - d); G.wear += WEAR_PER_HIT; flashScreen(); renderHud(); }
+function takeHit(d) {
+  G.hp = Math.max(0, G.hp - d); G.wear += WEAR_PER_HIT;
+  G.hp = Math.min(G.hp, stats().maxHp); // 最大HPも縮むため、超過分を切り詰める
+  spawnDamage(d, 'me'); flashScreen(); renderHud(); save();
+}
 
 // --- 敵・討伐隊・人質のターン ---
 function resolveTurn(msgs, drewAggro) {
@@ -1388,22 +1432,35 @@ function resolveTurn(msgs, drewAggro) {
     showMsgs(msgs, battleMenu); return;
   }
 
-  // 再生
+  // 再生（討伐隊の削りより速い＝チマチマでは追いつかない）
   if (e.kind === 'regen' && battle.hp > 0) {
-    const rg = Math.round(e.hp * 0.05); battle.hp = Math.min(battle.maxHp, battle.hp + rg);
+    const rg = Math.round(e.hp * 0.08); battle.hp = Math.min(battle.maxHp, battle.hp + rg);
     setEnemyHpBar(); msgs.push(`${e.name}は再生した！（+${rg}）`);
   }
-  // 討伐隊が敵を削る
-  const sd = squadDps(e); battle.hp = Math.max(0, battle.hp - sd);
-  setEnemyHpBar();
-  msgs.push(`討伐隊の攻撃！　${e.name}に ${sd} のダメージ！`);
-  if (battle.hp <= 0) { showMsgs(msgs, victory); return; }
+  // 討伐隊が敵を削る（兵士が気絶していると救護で動けない）
+  if (battle.soldier && battle.soldier.down) {
+    msgs.push('討伐隊は気絶した兵士の救護で動けない！');
+  } else {
+    const sd = squadDps(e);
+    if (sd > 0) {
+      battle.hp = Math.max(0, battle.hp - sd);
+      setEnemyHpBar();
+      msgs.push(`討伐隊の攻撃！　${e.name}に ${sd} のダメージ！`);
+      if (battle.hp <= 0) { showMsgs(msgs, victory); return; }
+    } else {
+      msgs.push('討伐隊の攻撃！　だが、まったく刃が通らない！');
+    }
+  }
 
   // 人質への脅威
   hostageThreat(msgs);
   if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
-  if (e.threat === 'breath' && battle.breathTimer === 1 && !battle.hostage.dead)
-    msgs.push(`${e.name}の喉が赤熱している……次のターン、ブレスが人質を焼く！（「かばう」か倒し切れ）`);
+  if (e.threat === 'breath') {
+    const sp = $('e-spr'); // 予兆：ブレス直前は赤く発光
+    if (sp) sp.classList.toggle('charging', battle.breathTimer === 1 && !battle.hostage.dead);
+    if (battle.breathTimer === 1 && !battle.hostage.dead)
+      msgs.push(`${e.name}の喉が赤熱している……次のターン、ブレスが人質を焼く！（「かばう」か倒し切れ）`);
+  }
 
   // 敵の反撃（こちらが手を出した時のみ）
   if (drewAggro) {
@@ -1411,8 +1468,6 @@ function resolveTurn(msgs, drewAggro) {
     msgs.push(`${e.name}のこうげき！　勇者は ${ed} のダメージを受けた！`);
     if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
   }
-  // 弱点更新表示
-  if (battle.e.threat === 'breath' && battle.breathTimer >= 0) updateBreathWarn();
   showMsgs(msgs, battleMenu);
 }
 
@@ -1443,11 +1498,6 @@ function hostageThreat(msgs) {
     }
   }
 }
-function updateBreathWarn() {
-  const as = $('a-state'); // ブレス予告は敵名の下に出すのは難しいので兵士欄を流用しない。簡易に。
-  // breathTimer 1 で次ターン発射
-}
-
 function hitEnemy(d, tag) {
   const icon = $('e-icon'), spr = $('e-spr');
   if (icon) { icon.classList.remove('shake'); void icon.offsetWidth; icon.classList.add('shake'); }
@@ -1473,7 +1523,7 @@ function victory() {
   const msgs = [`${e.name} をたおした！`];
   if (battle.isFinale) { G.finaleDone = true; battle = null; save(); showMsgs(msgs, () => showEnding()); return; }
 
-  if (!battle.hostage.dead) { G.saved++; G.herbs++; msgs.push('市民を守りきった！　やくそうを1つもらった。'); }
+  if (!battle.hostage.dead) { G.saved++; msgs.push('市民を守りきった！　市民は深々と頭を下げ、家族の元へ走っていった。'); }
   else { G.lost++; msgs.push('討伐隊「作戦成功。報告書には犠牲者0と書いておきます」'); }
 
   G.cleared[battle.region][battle.roomIdx] = true;
@@ -1497,9 +1547,9 @@ function checkForget(before) {
   return out;
 }
 function afterBattleFlow() {
-  // 戦闘のあと、少し息を整える（HPと魔力が少し戻る。削れた強さは戻らない）
+  // 戦闘のあと、少し息を整える（HPがわずかに戻る。魔力と削れた強さは戻らない）
   const s = stats();
-  const restHp = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * 0.30));
+  const restHp = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * 0.15));
   if (restHp > 0) G.hp += restHp;
   G.mp = Math.min(MAXMP, G.mp + Math.round(MAXMP * REST_MP));
   renderHud(); save();
@@ -1511,10 +1561,15 @@ function defeat() {
   const region = battle.region, roomIdx = battle.roomIdx;
   const hadHostage = !wasFinale && battle.hostage && !battle.hostage.dead;
   battle = null;
-  const s = stats(); G.hp = s.maxHp;
+  if (wasFinale) {
+    // 最後の戦いに敗れたら、そこで物語は終わる
+    showMsgs(['勇者は力尽きた……', 'たかが、スライムに。——いや。',
+      'もう「たかが」ではなかったのだ。すべてを使い果たした、今の彼には。'], () => showEnding(true));
+    return;
+  }
+  const s = stats(); G.hp = Math.max(1, Math.round(s.maxHp * 0.5));
   const msgs = ['勇者は力尽きた……', '…………', '目を覚ますと、魔物が傷の手当てをしてくれていた。',
-    '魔物「戦争はもう終わったのに、あんたも物好きだねぇ」', 'HPが回復した。だが、削れた強さは戻らない。'];
-  if (wasFinale) { renderHud(); save(); showMsgs(msgs, battleMenuRetryFinale); return; }
+    '魔物「戦争はもう終わったのに、あんたも物好きだねぇ」', 'HPが半分まで戻った。だが、削れた強さは戻らない。'];
   // 残党は討伐隊が始末してしまった（人質ごと）
   if (hadHostage) G.lost++;
   G.cleared[region][roomIdx] = true;
@@ -1522,13 +1577,15 @@ function defeat() {
   renderHud(); save();
   showMsgs(msgs.concat(checkForget(lvBefore)), afterBattleFlow);
 }
-function battleMenuRetryFinale() { startFinale(); }
 
 function showFinaleGate() {
   renderHud();
   stage.innerHTML = `<div class="map-scene"><h2>🏡 故郷の村へ</h2>
-    <div class="map-sub">残党はあと1体。世界に残された、最後の魔物。</div></div>`;
-  setCmds([{ label: '村へ向かう', primary: true, wide: true, fn: startFinale }], true);
+    <div class="map-sub">残る魔物は、あと1体。ただのスライムだ——いや、「ただのスライム」に、今のお前は勝てるのか。<br>敗れれば、そこで物語は終わる。<br>やくそうと残りの魔力だけが頼りだ。整えてから、扉を叩け。</div></div>`;
+  setCmds([
+    { label: '⚔️ 最後の戦いへ', primary: true, wide: true, fn: startFinale },
+    { label: '↩ 引き返す', wide: true, fn: renderWorld },
+  ], true);
 }
 
 // ===== イベント =====
@@ -1667,15 +1724,30 @@ const EVENTS = {
 };
 
 // ===== エンディング =====
-function showEnding() {
+function showEnding(fell) {
   hud.style.display = 'none';
   const s = stats();
   const saved = G.saved, lost = G.lost;
+  // 導入（fell=最後のスライムに敗れた場合の分岐）
+  let head, title, tail;
+  if (fell && saved > 0) {
+    head = `倒れた勇者の耳に、遠く、たくさんの足音が聞こえた。<br>——勇者が守った市民たちだった。鍬を、槌を、松明を手に。<br>「今度は、私たちの番だ！」<br>最後の魔物は、名もなき人々の手で討たれた。<br><br>勇者は担がれて、村の門をくぐる。<br><br>「……ただいま」`;
+    title = 'THE BEGINNING';
+    tail = '守った命に守られて、ここから彼の人生が始まる。';
+  } else if (fell) {
+    head = `勇者は倒れ、そして——誰も、来なかった。<br>守らなかった世界は、勇者を守らなかった。`;
+    title = 'THE END';
+    tail = '英雄の物語は、誰にも知られず終わった。';
+  } else {
+    head = `世界から、魔物が1体もいなくなった。<br>勇者は飛行艇を降り、歩いて村の門をくぐる。<br><br>「ただいま」`;
+    title = 'THE BEGINNING';
+    tail = '戦いの日々は終わり、ここから彼の人生が始まる。';
+  }
   let lines = [];
-  // 強さの帰結
-  if (s.lv >= 70) lines.push('英雄の力は、ほとんど残っていた。だが、その手で救えた命は少ない。');
-  else if (s.lv >= 30) lines.push(`勇者はLv${s.lv}まで衰えた。強さと引き換えに、いくつもの命を守った。`);
-  else lines.push(`勇者はLv${s.lv}——もう、どこにでもいる若者だった。救うために、すべてを使い果たして。`);
+  // 強さの帰結（残った力についてのみ語る）
+  if (s.lv >= 70) lines.push('英雄の力は、ほとんど残っていた。その剣はまだ千の魔物を斬れる——だが、斬るべき魔物はもういない。');
+  else if (s.lv >= 30) lines.push(`勇者はLv${s.lv}まで衰えた。失った力の分だけ、誰かの明日が残った。`);
+  else lines.push(`勇者はLv${s.lv}——もう、どこにでもいる若者だった。英雄の力は、戦いの中にすべて置いてきた。`);
   // 人質の帰結
   if (lost === 0 && saved > 0) lines.push(`守り抜いた市民：${saved}人。誰一人、犠牲にしなかった。`);
   else if (saved === 0) lines.push('救えた市民は、いなかった。勇者は強いまま、ひとりだった。');
@@ -1687,8 +1759,8 @@ function showEnding() {
 
   stage.innerHTML = `<div class="ending-scene">
     <div>${makeSprite('hero', 7)}</div>
-    <div>世界から、魔物が1体もいなくなった。<br>勇者は飛行艇を降り、歩いて村の門をくぐる。<br><br>「ただいま」<br><br>${lines.join('<br>')}<br><br>戦いの日々は終わり、ここから彼の人生が始まる。</div>
-    <div class="the-beginning">THE BEGINNING</div></div>`;
+    <div>${head}<br><br>${lines.join('<br>')}<br><br>${tail}</div>
+    <div class="the-beginning">${title}</div></div>`;
   clearSave();
   setCmds([{ label: 'タイトルへ', wide: true, fn: () => { G = null; showTitle(); } }], true);
 }
