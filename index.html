@@ -2000,10 +2000,22 @@ function victory() {
   if (paid > 0) msgs.push(`復興支援金として ${paid.toLocaleString()}G を徴収された。`);
   msgs.push(`残党は あと${remaining()}体。`);
 
-  const lvBefore = battle.lvStart;
+  const lvBefore = battle.lvStart, keyDone = battle.key;
   battle = null;
   renderHud(); save();
-  showMsgs(msgs.concat(checkForget(lvBefore)), afterBattleFlow);
+  let after = afterBattleFlow;
+  if (keyDone === 'dragon' && G.cleared[1][0] && G.cleared[1][2] && !G.choices.dragonEgg) {
+    after = () => showChoice([
+      '巣の奥で、何かが鈍く光っている。',
+      '——卵だ。ひとつだけ、割れずに残っている。',
+    ], [
+      { label: '割る', fn: () => { G.choices.dragonEgg = 'crushed'; save();
+        showMsgs(['勇者は剣の柄を握り直した。', '…………', '討伐隊「確認しました。竜種は、これで根絶です」'], afterBattleFlow); } },
+      { label: 'そっとしておく', primary: true, fn: () => { G.choices.dragonEgg = 'spared'; save();
+        showMsgs(['勇者は卵を、巣藁の奥へ押し込んだ。', '討伐隊が来る前に——かえるといい。'], afterBattleFlow); } },
+    ]);
+  }
+  showMsgs(msgs.concat(checkForget(lvBefore)), after);
 }
 function checkForget(before) {
   const out = []; const now = lvOf();
@@ -2053,6 +2065,16 @@ function defeat() {
 
 function showFinaleGate() {
   renderHud();
+  if (!G.choices.sunspot) {
+    G.choices.sunspot = true; save();
+    showMsgs([
+      '村の門の手前で、地面が丸く光っている。',
+      '……踏んでみた。',
+      '…………',
+      'ただの日だまりだった。少し、あたたかい。',
+    ], showFinaleGate);
+    return;
+  }
   stage.innerHTML = `<div class="map-scene"><h2>🏡 故郷の村へ</h2>
     <div class="map-sub">残る魔物は、あと1体。ただのスライムだ——いや、「ただのスライム」に、今のお前は勝てるのか。</div></div>`;
   setCmds([
@@ -2334,6 +2356,8 @@ function showEnding() {
   else if (G.choices.bride === 'none') lines.push('街道に、ふたりの女が開いた酒場があるという。店の名は「英雄の裏切り亭」。今夜も繁盛しているらしい。');
   if (G.choices.kingGave >= 3) lines.push('王都の凱旋式は盛大だったらしい。勇者の席は、なかった。');
   if (G.choices.casinoDoll) lines.push('机の上には、実力堂でもらった小さな英雄人形。誰も欲しがらなかったそれだけが、彼の旅を知っている。');
+  if (G.choices.dragonEgg === 'spared') lines.push('竜の山脈の巣で、卵がかえったという噂がある。討伐隊の帳簿に、24体目は載っていない。');
+  else if (G.choices.dragonEgg === 'crushed') lines.push('殲滅は、完璧だった。');
   if (G.choices.slimeReunion) lines.push('山道でもらい損ねた、固いパンのひとかけら。あれが旅で差し出された、唯一の褒美だったのかもしれない。');
   else if (G.choices.slime) lines.push('山道の小さなスライムのことを、勇者はときどき思い出す。');
 
