@@ -539,9 +539,6 @@ function showOpening() {
         'まずはこの天空の魔王城に巣食う残党を片づけ、飛行艇で地上へ降りる。あとは故郷までの帰り道を、一区画ずつ取り返していく。',
         '人類の「残党討伐隊」もすでに動き出している。彼らは——人質ごと魔物を焼く。',
         'そして勇者は気づいていた。魔王を前に研ぎ澄まされていた<b>「英雄の力」</b>が、もう抜けはじめていることに。',
-        '<b>一撃もらうごとに、体は確かに弱っていく。</b>アドレナリンは引き、筋繊維はすり減り、レベルは下がっていく。',
-        'やくそうは傷をふさぐ。だが、削れた強さは戻らない。',
-        '——人質を救えば、自分が削れる。見捨てれば、強いまま進める。',
         '物語はここから、終わりに向かって始まる。',
       ], () => { G.opened = true; renderHud(); save(); startJourney(); });
     }}]);
@@ -596,7 +593,7 @@ function renderWorld() {
   }
   wrap.appendChild(grid);
   const hint = document.createElement('div'); hint.className = 'maphint';
-  hint.innerHTML = G.descended ? 'まわりのマスをタップして移動。<br>この先に何があるかは——進んでみるまで分からない。' : '魔王城の残党を殲滅し、飛行艇で地上へ降りよ。';
+  hint.innerHTML = G.descended ? 'まわりのマスをタップして移動。' : '魔王城の残党を殲滅し、飛行艇で地上へ降りよ。';
   wrap.appendChild(hint);
   stage.appendChild(wrap);
   mapMenu(false);
@@ -1671,7 +1668,7 @@ function startBattle(key, region, roomIdx) {
     ]);
   }
   // 敵ごとの弱点ヒントは自動表示しない——「ようすをみる」で観察したときに出る
-  if (e.threat === 'breath') intro.push('体の奥が、赤く光りはじめている……（ブレスの予兆）');
+  if (e.threat === 'breath') intro.push('体の奥が、赤く光りはじめている……');
   showMsgs(intro, battleMenu);
 }
 function startFinale() {
@@ -1843,7 +1840,7 @@ function sacrificeBattle() {
   G.cleared[region][roomIdx] = true;
   battle = null; renderHud(); save();
   showMsgs([
-    '勇者は背を向けた。守らない、という選択。',
+    '勇者は背を向けた。',
     hadHostage ? `討伐隊が${e.name}を片づける——人質もろとも。` : `討伐隊が${e.name}を片づけた。`,
     `残党は あと${remaining()}体。`,
   ], afterBattleFlow);
@@ -1877,9 +1874,7 @@ function resolveTurn(msgs, drewAggro) {
     msgs.push({ text: `${e.name}は再生した！（+${rg}）`, fx: () => setEnemyHpBarTo(hpNow, maxNow) });
   }
   // 討伐隊が敵を削る（兵士が気絶していると救護で動けない）
-  if (battle.soldier && battle.soldier.down) {
-    msgs.push('討伐隊は気絶した兵士の救護で動けない！');
-  } else {
+  if (!(battle.soldier && battle.soldier.down)) {
     const sd = squadDps(e);
     if (sd > 0) {
       battle.hp = Math.max(0, battle.hp - sd);
@@ -2032,7 +2027,7 @@ function defeat() {
   }
   const s = stats(); G.hp = Math.max(1, Math.round(s.maxHp * 0.5));
   const msgs = ['勇者は力尽きた……', '…………', '目を覚ますと、魔物が傷の手当てをしてくれていた。',
-    '魔物「戦争はもう終わったのに、あんたも物好きだねぇ」', 'HPが半分まで戻った。'];
+    '魔物「戦争はもう終わったのに、あんたも物好きだねぇ」'];
   // 残党は討伐隊が始末してしまった（人質ごと）
   if (hadHostage) G.lost++;
   G.cleared[region][roomIdx] = true;
@@ -2081,7 +2076,7 @@ const EVENTS = {
   leave_warrior: (next) => showMsgs([
     '戦士ガロが剣を鞘に納め、二度と抜かないという顔をした。',
     'ガロ「俺は鍛冶屋の倅だ。これからは剣を打つ側に回るさ」',
-    '<b>戦士ガロはパーティを去った。</b>　一人、また一人と、世界が平時に戻っていく。',
+    '<b>戦士ガロはパーティを去った。</b>',
   ], () => { depart('戦士ガロ'); next(); }),
   leave_priest: (next) => showMsgs([
     '僧侶ミラが、傷ついた人々のいる村に残ると言った。',
@@ -2098,7 +2093,6 @@ const EVENTS = {
     '麓の村に降りる。だが、誰も「勇者様」とは呼ばなかった。',
     '村人「……戦争の人だ。もう魔物はいないんでしょう？　早く行ってくれ」',
     '宿屋の主人「悪いが、もう客は取ってないんだ。みんな、思い出したくないのさ」',
-    '英雄を待ち望む村は、もうどこにもない。',
   ], next),
 
   // ===== RPGの逆：武器屋は“買い取り専門” =====
@@ -2157,7 +2151,6 @@ const EVENTS = {
       '山道の岩陰から、小さなスライムがこちらを見ている。',
       '<b>スライムは ものほしそうに こちらを みている。</b>',
       '魔王軍は壊滅した。親玉も、群れも、餌をくれる者も、もういない。',
-      '……敗けた国の、子供のようなものだ。',
     ], [
       { label: '🍞 パンを分けてやる', primary: true, fn: () => { G.choices.slime = 'fed';
         showMsgs(['勇者は固くなったパンをちぎって、岩の上に置いた。',
@@ -2203,7 +2196,6 @@ const EVENTS = {
       '山を降りた街道に、王家の早馬が待っていた。',
       '使者「魔王討伐の栄誉、王はいたく感激しておられる！」',
       '使者「ついては——<b>王のほうに、そなたへ望みがある</b>」',
-      '褒美をくれる流れでは、なかった。',
     ], round);
   },
 
@@ -2237,7 +2229,6 @@ const EVENTS = {
     '祠の前で、いつものように祈った。だが——',
     '何も起きなかった。光も、声も、温もりも。',
     '「選ばれし者」への加護は、役目を終えて去ったらしい。',
-    'もう、誰も守ってはくれない。',
   ], next),
 
   // ===== RPGの逆：英雄譚の風化 =====
@@ -2245,7 +2236,6 @@ const EVENTS = {
     '森の入口で、吟遊詩人が勇者の歌を口ずさんでいた。',
     '詩人「♪ 黄金の鎧の勇者は、千の軍勢を率いて——」',
     '……どれも、間違っている。鎧は黄金ではないし、軍勢などいなかった。',
-    '伝説になるどころか、自分の物語は、もう正しく覚えられてさえいない。',
   ], next),
 
   // ===== 隠し：見逃した魔物との再会（沼を越えてから砦に引き返すと）=====
