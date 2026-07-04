@@ -53,7 +53,7 @@
   @keyframes shake { 0%,100% { transform: translateX(0);} 25%{transform:translateX(-9px);} 75%{transform:translateX(9px);} }
   .enemy-name { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
   .enemy-tag { font-size: 12px; color: #ffb46a; }
-  .enemy-hpbar { width: 70%; max-width: 300px; height: 6px; }
+  .enemy-hpbar { width: 70%; max-width: 300px; height: 6px; flex: 0 0 auto; } /* .barのflex:1が縦flex内で高さ伸長として効くのを止める */
   .subunits { display: flex; gap: 24px; margin-top: 12px; }
   .unit { text-align: center; font-size: 12px; color: #c8c8e0; }
   .unit .u-spr { display: flex; justify-content: center; height: 48px; align-items: flex-end; }
