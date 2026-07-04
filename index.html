@@ -1507,8 +1507,7 @@ function mapMenu(inDungeon, ctx) {
   } });
   if (!inDungeon) list.push({ label: '💰 行商人', fn: visitMerchant });
   if (!inDungeon && G.descended) list.push({ label: '🎰 実力堂', fn: visitCasino });
-  list.push({ label: '🛡 そうび／仲間', fn: showStatus });
-  list.push({ label: '📜 たびのこころえ', fn: showKokoroe });
+  list.push({ label: '🛡 そうび／仲間', wide: true, fn: showStatus });
   setCmds(list, true);
 }
 function showStatus() {
@@ -1529,16 +1528,7 @@ function showStatus() {
     `<b>仲間</b>：${party}`,
   ], renderScene);
 }
-function showKokoroe() {
-  showMsgs([
-    `<b>たびのこころえ</b>`,
-    `敵の攻撃を受けるたび、レベルは恒久的に下がる。HPと違って、二度と戻らない。`,
-    `「ようすをみる」で敵を観察すれば、弱点と手口がわかる。ただし、その間も人質への脅威は進む。`,
-    `じゅもんの威力はレベルが下がっても衰えない。ただし魔力は自然回復しない——補給は行商人の「魔力の雫」だけだ。`,
-    `そして弱り切れば、じゅもんの使い方そのものを忘れる。ゆうしゃぎりはLv50、ライガはLv40、フレイはLv20、リカバはLv15を切ると唱えられない。`,
-    `この世界に運はない。同じ状況で同じ手を打てば、必ず同じ結果になる。`,
-  ], renderScene);
-}
+// 「たびのこころえ」は削除した——ルールは遊びの中で気づかせる。解説が読みたければ攻略本がある
 // ===== カジノ「実力堂」：運の要素がひとつもない、腕だけの卓 =====
 const CASINO_FEE = 500;
 function visitCasino() {
