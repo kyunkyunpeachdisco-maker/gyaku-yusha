@@ -53,7 +53,7 @@
   @keyframes shake { 0%,100% { transform: translateX(0);} 25%{transform:translateX(-9px);} 75%{transform:translateX(9px);} }
   .enemy-name { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
   .enemy-tag { font-size: 12px; color: #ffb46a; }
-  .enemy-hpbar { width: 70%; max-width: 300px; }
+  .enemy-hpbar { width: 70%; max-width: 300px; height: 6px; }
   .subunits { display: flex; gap: 24px; margin-top: 12px; }
   .unit { text-align: center; font-size: 12px; color: #c8c8e0; }
   .unit .u-spr { display: flex; justify-content: center; height: 48px; align-items: flex-end; }
@@ -185,6 +185,8 @@ const SPRITES = {
     "rows": ["...YY...","..YFFY..",".YFOOFY.",".FOOOOF.","..FOOF..","...FF...","...11...","...11...","..2112..","...22..."] },
   "chest": { "pal": {"1":"#8a5a2a","2":"#5a3a18","G":"#ffd23b","W":"#caa45a"},
     "rows": ["..........","..GGGGGG..",".WGGGGGGW.",".W111111W.",".WWWWWWWW.",".W11GG11W.",".W111111W.",".WWWWWWWW.",".2......2.",".........."] },
+  "chest_open": { "pal": {"1":"#8a5a2a","2":"#5a3a18","W":"#caa45a","K":"#1a1208"},
+    "rows": [".WWWWWWWW.",".W111111W.",".WWWWWWWW.",".WKKKKKKW.",".WKKKKKKW.",".W111111W.",".W111111W.",".WWWWWWWW.",".2......2.",".........."] },
   "crate": { "pal": {"1":"#9a6a3a","2":"#5a3a18","3":"#b88a4a"},
     "rows": ["33333333","31111113","31311313","31131131","31113111","31131131","31311313","33333333"] },
   "barrel": { "pal": {"1":"#9a6a3a","2":"#5a3a18","M":"#8a8a98"},
@@ -206,12 +208,13 @@ const SPRITES = {
 };
 const REGION_FLOOR = ['f_castle', 'f_mtn', 'f_fort', 'f_swamp', 'f_forest'];
 // 地域ごとの装飾（柱＋床に置く小物プール）
+// 装飾の宝箱は「漁られた後」の開いた姿(閉じた宝箱=中身がある、と誤解させない)
 const DECOR = {
-  0: { pillar: 'pillar', items: ['chest', 'statue', 'bones', 'barrel', 'crate'] },
-  1: { pillar: 'rock',   items: ['rock', 'bones', 'chest', 'rock', 'bones'] },
-  2: { pillar: 'pillar', items: ['crate', 'barrel', 'crate', 'bones', 'chest'] },
+  0: { pillar: 'pillar', items: ['chest_open', 'statue', 'bones', 'barrel', 'crate'] },
+  1: { pillar: 'rock',   items: ['rock', 'bones', 'chest_open', 'rock', 'bones'] },
+  2: { pillar: 'pillar', items: ['crate', 'barrel', 'crate', 'bones', 'chest_open'] },
   3: { pillar: 'rock',   items: ['puddle', 'bones', 'bush', 'rock', 'puddle'] },
-  4: { pillar: 'bush',   items: ['bush', 'rock', 'bush', 'chest', 'bush'] },
+  4: { pillar: 'bush',   items: ['bush', 'rock', 'bush', 'chest_open', 'bush'] },
 };
 const _sprCache = {};
 function makeSprite(key, px) {
@@ -247,11 +250,12 @@ const MATK = 130;               // 呪文の冴えは衰えない——衰える
 const REST_MP = 0.0;            // 魔力は戦線移動でも戻らない
 
 // じゅもん・とくぎ（独自名。被弾で弱るほど強い技から使えなくなる）
+// フレイ・リカバにも忘却Lvがある——弱り切った者は、魔法という抜け道も失う
 const SPELLS = [
   { id: 'yusha', name: 'ゆうしゃぎり', mp: 10, minLv: 50, kind: 'phys',  mult: 2.0, flavor: '勇者のゆうしゃぎり！' },
   { id: 'raiga', name: 'ライガ',       mp: 12, minLv: 40, kind: 'thunder', power: 2.2, flavor: '勇者はライガをとなえた！　いかずち！' },
-  { id: 'frei',  name: 'フレイ',       mp: 6,  minLv: 1,  kind: 'fire',    power: 1.5, flavor: '勇者はフレイをとなえた！　ほのお！' },
-  { id: 'recover', name: 'リカバ',     mp: 8,  minLv: 1,  kind: 'heal',    power: 0.45, flavor: '勇者はリカバをとなえた！' },
+  { id: 'frei',  name: 'フレイ',       mp: 6,  minLv: 20, kind: 'fire',    power: 1.5, flavor: '勇者はフレイをとなえた！　ほのお！' },
+  { id: 'recover', name: 'リカバ',     mp: 8,  minLv: 15, kind: 'heal',    power: 0.45, flavor: '勇者はリカバをとなえた！' },
 ];
 
 // ===== 敵（ギミック）=====
@@ -259,28 +263,30 @@ const SPELLS = [
 // threat: splash=討伐隊の流れ弾(みねうちで停止) / fast=2倍流れ弾 / direct=敵が人質を直接攻撃 / breath=数ターン毎に人質を焼く
 const ENEMIES = {
   durahan:    { name:'魔王親衛隊デュラハン', sprite:'durahan',     hp:680, atk:230, def:140, kind:'squad',   threat:'splash', counter:true,  gold:800,
-                tag:'物理に反撃', hint:['物理で斬りかかると反撃を受ける。','「みねうち」で流れ弾は止まるが、討伐隊の攻撃も止まる。','守り切るなら、じゅもんか覚悟の剣で自ら仕留めろ。'] },
+                tag:'物理に反撃', hint:['斬りかかれば、必ず斬り返される。受けるたびに力は削れる。','人質が流れ弾に耐えられるのは、あと1発。守り切りたいなら悠長にはできない。','大技で早く仕留めるか、みねうちで兵士を眠らせてから自力で倒すかだ。'] },
   golem:      { name:'ヘルゴーレム',         sprite:'golem',       hp:600, atk:170, def:170, kind:'magic',   threat:'splash', counter:false, gold:700,
-                tag:'物理無効', hint:['岩の体に刃も討伐隊も通らない。','じゅもんでしか倒せない。魔力を惜しむな。'] },
+                tag:'物理無効', hint:['岩の体には、剣も討伐隊の攻撃もほとんど通らない。じゅもんだけが有効だ。','討伐隊が役に立たないなら、流れ弾を出させておく意味もない——みねうちで止めてしまえ。'] },
   dragon:     { name:'エンシェントドラゴン', sprite:'dragon',      hp:540, atk:175, def:110, kind:'squad',   threat:'breath', counter:false, gold:650,
-                tag:'ブレス予告', hint:['数ターンごとにブレスで人質を焼く。','予告が出たら「かばう」か、その前に倒し切れ。'] },
+                tag:'ブレス予告', hint:['数ターンおきに、人質へ向けてブレスを吐く。喉が赤く光ったら、次のターンに来る。','来る前に倒し切るか、「かばう」で身代わりになるかだ。'] },
   icedrake:   { name:'アイスドレイク',       sprite:'icedrake',    hp:470, atk:155, def:100, kind:'fire',    threat:'splash', counter:false, gold:600,
-                tag:'炎が弱点', hint:['氷の鱗は「フレイ（炎）」に弱い。','ライガはほとんど効かない。'] },
+                tag:'炎が弱点', hint:['氷の鱗は炎のじゅもん「フレイ」に弱い。雷の「ライガ」はほとんど効かない。','剣は氷に滑る。じゅもんで手早く。'] },
   deathknight:{ name:'デスナイト',           sprite:'deathknight', hp:380, atk:120, def:135, kind:'magic',   threat:'direct', counter:false, gold:500,
-                tag:'重装甲・人質を直接狙う', hint:['重装甲で物理も討伐隊も通らない。','討伐隊を無視して人質を斬る。じゅもんで急げ。'] },
+                tag:'重装甲・人質を直接狙う', hint:['重装甲に剣も討伐隊の攻撃も通らない。そのうえ、討伐隊を無視して人質を直接斬りにいく。','じゅもんで、2ターン以内に仕留めろ。3ターン目に人質はもたない。'] },
   scorpion:   { name:'メタルスコルピオン',   sprite:'scorpion',    hp:340, atk:110, def:95,  kind:'thunder', threat:'splash', counter:false, gold:450,
-                tag:'雷が弱点', hint:['金属の殻は「ライガ（雷）」に弱い。','フレイは効きが悪い。'] },
+                tag:'雷が弱点', hint:['金属の殻は雷のじゅもん「ライガ」に弱い。炎の「フレイ」は効きが悪い。','ライガなら一撃——人質に指一本触れさせず終わらせられる。'] },
   wraith:     { name:'レイス',               sprite:'wraith',      hp:250, atk:95,  def:60,  kind:'magic',   threat:'direct', counter:false, gold:400,
-                tag:'物理すり抜け・人質に取り憑く', hint:['物理はすり抜ける。討伐隊は無力。','取り憑く前にじゅもんで祓え。'] },
+                tag:'物理すり抜け・人質に取り憑く', hint:['実体がなく、剣も討伐隊の攻撃もすり抜ける。じゅもんだけが効く。','人質に取り憑こうとにじり寄っている。2ターン以内に祓え。'] },
   mandragora: { name:'マンドラゴラ',         sprite:'mandragora',  hp:230, atk:70,  def:50,  kind:'regen',   threat:'splash', counter:false, gold:350,
-                tag:'毎ターン再生', hint:['チマチマ削っても再生で追いつかない。','強い一撃で一気に落とせ。'] },
+                tag:'毎ターン再生', hint:['傷を毎ターン再生する。討伐隊の削りでは、再生に追いつかない。','一撃の大きいじゅもんで、再生の間を与えず仕留めろ。'] },
   wolf:       { name:'キラーウルフ',         sprite:'wolf',        hp:190, atk:60,  def:35,  kind:'squad',   threat:'fast',   counter:false, gold:300,
-                tag:'2回行動', hint:['素早く、人質はあっという間に死ぬ。','初手で「みねうち」だ。'] },
+                tag:'2回行動', hint:['速い。討伐隊が翻弄され、流れ弾がまとめて人質に向かう——最初のターンで人質は倒れる。','人質を守る手は初手だけ。一撃で仕留めるか、みねうちで兵士を止めろ。'] },
   harpy:      { name:'ハーピー',             sprite:'harpy',       hp:160, atk:55,  def:30,  kind:'squad',   threat:'direct', counter:false, gold:250,
-                tag:'人質を直接さらう', hint:['空から人質を直接襲う。','「かばう」か、早めに討伐隊と倒し切れ。'] },
+                tag:'人質を直接さらう', hint:['空から人質を直接さらいにいく。討伐隊の壁も意味がない。','2ターン以内に撃ち落とすか、「かばう」で受け止めろ。'] },
 };
-// 最終戦。スライム自体はごく普通の魔物——強いか弱いかは、勇者に何が残っているか次第
-const FINALE = { name:'さいごのスライム', sprite:'slime', hp:60, atk:8, def:5, kind:'squad' };
+// 最終戦。スライムは弱い魔物のまま——大きく見えるのは、勇者が削れ切ったときだけ。
+// スライムの壁=Lv5以下: 回復を捨てて殴り合っても、やくそうを満載しても勝てない。受け皿はくろい心臓。
+// 壁の高さはこのatkで調整する(atk52→壁Lv5 / 48→Lv4 / 68→Lv10級)。フレイ忘却Lv20/リカバ忘却Lv15(SPELLS)とセット
+const FINALE = { name:'さいごのスライム', sprite:'slime', hp:60, atk:52, def:5, kind:'squad' };
 
 // ===== 地域（有限の出撃順）＋イベント =====
 const REGIONS = [
@@ -455,7 +461,9 @@ function renderTyping() { msgwin.innerHTML = curTokens.slice(0, curShown).join('
 function showMsgs(msgs, done) { msgQueue = msgs.slice(); msgDone = done; setCmds([]); msgwin.style.display = 'block'; nextMsg(); }
 function nextMsg() {
   if (msgQueue.length === 0) { msgwin.style.display = 'none'; const fn = msgDone; msgDone = null; if (fn) fn(); return; }
-  curTokens = tokenize(msgQueue.shift()); curShown = 0; typing = true; renderTyping();
+  let item = msgQueue.shift();
+  if (item && typeof item === 'object') { if (item.fx) item.fx(); item = item.text; } // 演出をこのメッセージの表示に同期
+  curTokens = tokenize(item); curShown = 0; typing = true; renderTyping();
   clearInterval(typeTimer);
   typeTimer = setInterval(() => { curShown++; if (curShown >= curTokens.length) { curShown = curTokens.length; typing = false; clearInterval(typeTimer); } renderTyping(); }, 22);
 }
@@ -473,9 +481,23 @@ function showTitle() {
   stage.innerHTML = `
     <div class="title-scene">
       <div><h1>逆勇者</h1><div class="sub">〜魔王を倒してからが本番〜</div></div>
-      <div class="spr">${makeSprite('hero', 7)}</div>
+      <div class="spr" id="title-hero">${makeSprite('hero', 7)}</div>
       <div class="sub">敵は有限。すべて殲滅したら、物語は終わる。</div>
+      <div class="sub"><a href="guide.html" style="color:#7fd0ff;text-decoration:none">📖 かんぜん攻略本（ネタバレ全開）</a></div>
     </div>`;
+  // 隠し: 勇者を7回たたくと、玉座の間で途切れた言葉の続きが聞ける
+  let heroTaps = 0;
+  $('title-hero').addEventListener('click', () => {
+    if (++heroTaps !== 7) return;
+    heroTaps = 0;
+    showMsgs([
+      '勇者は、玉座の間で聞いた言葉を思い出していた。',
+      '魔王「我を倒しても、世界に平和など——」',
+      'あの続きを、勇者はもう知っている。',
+      '「——来ぬ。剣を置けぬ英雄と、行き場のない魔物が残るだけだ」',
+      '「それでもゆくのなら、最後まで見届けよ。それがお前の、二つ目の役目になる」',
+    ], showTitle);
+  });
   const startNew = () => { clearSave(); G = newGame(); showOpening(); };
   const list = [{ label: 'はじめから', primary: true, wide: !saved, fn: () => {
     if (!saved) return startNew();
@@ -508,7 +530,7 @@ function showOpening() {
         'だが、魔王が倒れても魔物がすべて消えるわけではない。世界にはまだ残党が <b>23体</b> 残っていた。',
         '行きは魔王だけを狙い、勇者は残党に目もくれず一直線に駆け抜けてきた。',
         'その残党がいま、勇者の背後——故郷へと続く道に集まり、人里を盾に防衛線を張っている。',
-        'まずはこの天空の魔王城に巣食う残党を片づけ、飛行艇で地上へ降りる。そして手前から順に殲滅し、故郷へ帰るのだ。',
+        'まずはこの天空の魔王城に巣食う残党を片づけ、飛行艇で地上へ降りる。あとは故郷までの帰り道を、一区画ずつ取り返していく。',
         '人類の「残党討伐隊」もすでに動き出している。彼らは——人質ごと魔物を焼く。',
         'そして勇者は気づいていた。魔王を前に研ぎ澄まされていた<b>「英雄の力」</b>が、もう抜けはじめていることに。',
         '<b>一撃もらうごとに、体は確かに弱っていく。</b>アドレナリンは引き、筋繊維はすり減り、レベルは下がっていく。',
@@ -583,7 +605,18 @@ function worldTap(x, y) {
 }
 function tryEnterRegion(ri) {
   if (G.limbo) { showMsgs(['「悔い改めよ」'], renderWorld); return; }
-  if (regionCleared(ri)) { renderWorld(); return; }
+  if (regionCleared(ri)) {
+    // 隠し: 亡者の沼を越えたあと、道を引き返すと——
+    if (ri === 2 && G.choices.spared && !G.choices.sparedReunion && regionCleared(3)) {
+      G.choices.sparedReunion = true; save();
+      return runEvents(['spared_reunion'], renderWorld);
+    }
+    if (ri === 1 && G.choices.slime === 'fed' && !G.choices.slimeReunion && regionCleared(3)) {
+      G.choices.slimeReunion = true; save();
+      return runEvents(['slime_reunion'], renderWorld);
+    }
+    renderWorld(); return;
+  }
   if (!regionUnlocked(ri)) { renderWorld(); showMsgs(['霧が濃く、まだ近づけない。手前の残党を片付けねば。'], renderWorld); return; }
   if (!G.firedEnter.includes(ri)) { G.firedEnter.push(ri); return runEvents(REGIONS[ri].onEnter, () => enterRegionAfterEvents(ri)); }
   enterRegionAfterEvents(ri);
@@ -657,7 +690,10 @@ function renderDungeon() {
     if (decor.map[dk]) cell.innerHTML += decorOv(decor.map[dk]); // 小物
     if (rx === CX && ry === 2) {
       if (enemyHere) cell.innerHTML += `<div class="ov big">${makeSprite(ENEMIES[reg.list[idx]].sprite, 2.4)}</div>`;
-      else if (onPuzzle) cell.innerHTML += pzDone ? '<div class="ov">✓</div>' : (here.type === 'nim' ? spriteOv('orochi') : here.type === 'liar' || here.type === 'zebra' ? spriteOv('soldier') : here.type === 'ulam' ? spriteOv('citizen') : here.type === 'sphinx' || here.type === 'nonogram' ? decorOv('statue') : here.type === 'akari' ? decorOv('torch') : decorOv('chest'));
+      else if (onPuzzle) {
+        const chestPz = !['nim', 'liar', 'zebra', 'ulam', 'sphinx', 'nonogram', 'akari'].includes(here.type);
+        cell.innerHTML += pzDone ? (chestPz ? decorOv('chest_open') : '<div class="ov">✓</div>') : (here.type === 'nim' ? spriteOv('orochi') : here.type === 'liar' || here.type === 'zebra' ? spriteOv('soldier') : here.type === 'ulam' ? spriteOv('citizen') : here.type === 'sphinx' || here.type === 'nonogram' ? decorOv('statue') : here.type === 'akari' ? decorOv('torch') : decorOv('chest'));
+      }
       else if (isExit) cell.innerHTML += '<div class="ov big">🔻</div>';
       else if (idx >= 0) cell.innerHTML += '<div class="ov">💀</div>';
       else if (isEnt) cell.innerHTML += '<div class="ov">🚪</div>';
@@ -676,7 +712,9 @@ function renderDungeon() {
       : here.type === 'ulam' ? '避難民たちが身を寄せ合っている。……ひとり、様子がおかしい。'
       : '封印された宝箱だ。挑戦して中身を頂くか？')
     : (isExit && done) ? '🔻 階段がある。おりて次の地へ。'
-    : (done ? '残党は全滅した。🔻 階段（出口）を探せ。' : '扉（矢印）の方へスワイプ／タップで隣の部屋へ。');
+    : done ? '残党は全滅した。🔻 階段（出口）を探せ。'
+    : isEnt ? 'ここから入ってきた。扉はすでに封じられ、残党を殲滅するまで外へは戻れない。<br>矢印が出ている方向にだけ通路がある。タップかスワイプで移動。'
+    : '矢印が出ている方向にだけ通路がある。タップかスワイプで隣の部屋へ。';
   wrap.appendChild(hint);
   stage.appendChild(wrap);
   attachSwipe(wrap, moveRoom);
@@ -1468,7 +1506,8 @@ function mapMenu(inDungeon, ctx) {
   } });
   if (!inDungeon) list.push({ label: '💰 行商人', fn: visitMerchant });
   if (!inDungeon && G.descended) list.push({ label: '🎰 実力堂', fn: visitCasino });
-  list.push({ label: '🛡 そうび／仲間', wide: true, fn: showStatus });
+  list.push({ label: '🛡 そうび／仲間', fn: showStatus });
+  list.push({ label: '📜 たびのこころえ', fn: showKokoroe });
   setCmds(list, true);
 }
 function showStatus() {
@@ -1486,11 +1525,17 @@ function showStatus() {
     `<b>そうび</b>`,
     `英雄の剣　こうげき +${s.eqAtk}／英雄のよろい　しゅび +${s.eqDef}`,
     `削れるほど武具の輝きも鈍る。レベルが下がれば、やがてただの鉄に。`,
-    `力を守る道はふたつ。手を出さず見捨てるか、魔力で仕留めるか——刃を交えれば、そのたび確実に削れる。`,
-    `じゅもんの冴えは衰えない。衰えるのは体のほうだ。ただし魔力は、使えば二度と自然には戻らない。`,
-    `この世界に運はない。同じ手順は、必ず同じ結果になる。`,
     `<b>仲間</b>：${party}`,
-    `魔力（じゅもん）は有限。戦いでは戻らない。頼れるのは行商人の「魔力の雫」だけだ。`,
+  ], renderScene);
+}
+function showKokoroe() {
+  showMsgs([
+    `<b>たびのこころえ</b>`,
+    `敵の攻撃を受けるたび、レベルは恒久的に下がる。HPと違って、二度と戻らない。`,
+    `敵が勇者を狙うのは、勇者が手を出したターンだけ。攻撃じゅもん・みねうち・かばうも「手出し」に入る。道具と回復と様子見なら、狙われない。`,
+    `じゅもんの威力はレベルが下がっても衰えない。ただし魔力は自然回復しない——補給は行商人の「魔力の雫」だけだ。`,
+    `そして弱り切れば、じゅもんの使い方そのものを忘れる。ゆうしゃぎりはLv50、ライガはLv40、フレイはLv20、リカバはLv15を切ると唱えられない。`,
+    `この世界に運はない。同じ状況で同じ手を打てば、必ず同じ結果になる。`,
   ], renderScene);
 }
 // ===== カジノ「実力堂」：運の要素がひとつもない、腕だけの卓 =====
@@ -1573,17 +1618,33 @@ function visitMerchant() {
   const intro = ['行商人「へっへっへ、戦後はなにかと物入りでねぇ」',
     `行商人「やくそう <b>${hp.toLocaleString()}G</b>、魔力の雫 <b>${dp.toLocaleString()}G</b>。買うたびに値は上がるよ」`];
   if (merchantRate() < 1) intro.push('行商人「フロリア商会のお声がかりだからね、あんたには<b>半額</b>だ」');
+  // 隠し: 買わずに立ち去ること3回連続——渋さを見かねて、一度だけ餞別をくれる
+  if ((G.choices.merchantStreak || 0) >= 3 && !G.choices.merchantGift) {
+    G.choices.merchantGift = true; G.herbs++; renderHud(); save();
+    return showMsgs([
+      '行商人「あんた、来るたび見てばかりで買わないねぇ」',
+      '行商人「……ま、それだけ切り詰めてるってことだ。ほら、餞別だよ」',
+      '🌿 やくそうを1つ もらった。',
+      '行商人「誰にも言うんじゃないよ。商売にならない」',
+    ], visitMerchant);
+  }
   showMsgs(intro, () => {
+    let bought = false;
     setCmds([
       { label: `🌿 やくそう (${hp.toLocaleString()}G)`, primary: true, disabled: G.gold < hp, fn: () => {
+        bought = true; G.choices.merchantStreak = 0;
         G.gold -= hp; G.herbs++; G.herbBought++; renderHud(); save();
         showMsgs(['やくそうを手に入れた。', '行商人「毎度あり！　次はこの倍だよ」'], visitMerchant);
       } },
       { label: `💧 魔力の雫 (${dp.toLocaleString()}G)`, disabled: G.gold < dp, fn: () => {
+        bought = true; G.choices.merchantStreak = 0;
         G.gold -= dp; G.drops++; G.dropBought++; renderHud(); save();
         showMsgs(['魔力の雫を手に入れた。', '行商人「じゅもんの使いすぎにご用心。次はこの倍だよ」'], visitMerchant);
       } },
-      { label: 'やめる', wide: true, fn: renderScene },
+      { label: 'やめる', wide: true, fn: () => {
+        if (!bought) { G.choices.merchantStreak = (G.choices.merchantStreak || 0) + 1; save(); }
+        renderScene();
+      } },
     ], true);
   });
 }
@@ -1609,6 +1670,14 @@ function startBattle(key, region, roomIdx) {
   save();
   renderBattle(e, false);
   let intro = [`${e.name} があらわれた！`, `${e.name}は市民を人質に取っている！`];
+  if (!G.seenHint._first) {
+    G.seenHint._first = true;
+    intro = intro.concat([
+      '討伐隊の兵士が加勢に来た。毎ターン、勝手に敵を攻撃してくれる。',
+      'だが乱戦のせいで、兵士の<b>流れ弾</b>が毎ターン人質に当たってしまう。',
+      '敵が勇者を狙うのは、<b>勇者が手を出したターンだけ</b>。そして一発受けるごとに、力は恒久的に削れていく。',
+    ]);
+  }
   if (!G.seenHint[key]) { G.seenHint[key] = true; intro = intro.concat(e.hint); }
   if (e.threat === 'breath') intro.push('体の奥が、赤く光りはじめている……（ブレスの予兆）');
   showMsgs(intro, battleMenu);
@@ -1692,7 +1761,6 @@ function useDarkItem() {
   battle.guarding = false;
   G.choices.corrupted = true; // 何も告げずに、確定する
   battle.hp = 0;
-  hitEnemy(9999, 'weak');
   victory(); // 説明はない。ただ、敵が倒れる
 }
 
@@ -1702,12 +1770,11 @@ function playerAttack() {
   const s = stats(), e = battle.e;
   let d = Math.max(1, Math.round(phys(s.atk, e.def) * physEff(e)));
   battle.hp = Math.max(0, battle.hp - d);
-  hitEnemy(d, physEff(e) < 1 ? 'resist' : '');
-  const msgs = [`勇者のこうげき！　${e.name}に ${d} のダメージ！`];
+  const msgs = [{ text: `勇者のこうげき！　${e.name}に ${d} のダメージ！`, fx: enemyHitFx(d, physEff(e) < 1 ? 'resist' : '', battle.hp, battle.maxHp) }];
   if (physEff(e) < 1) msgs.push('——ほとんど効いていない！');
   if (e.counter && battle.hp > 0) {
     const cd = phys(e.atk, s.def);
-    takeHit(cd); msgs.push(`${e.name}の反撃！　勇者は ${cd} のダメージ！　力が削れた……`);
+    takeHit(cd); msgs.push({ text: `${e.name}の反撃！　勇者は ${cd} のダメージ！　力が削れた……`, fx: heroHitFx(cd) });
     if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
     resolveTurn(msgs, false); // 反撃済みなので通常反撃はなし
     return;
@@ -1720,7 +1787,7 @@ function castSpell(sp) {
   G.mp -= sp.mp; const msgs = [sp.flavor];
   if (sp.kind === 'heal') {
     const heal = Math.max(0, Math.min(s.maxHp - G.hp, Math.round(s.maxHp * sp.power))); G.hp += heal;
-    spawnDamage(heal, 'heal'); msgs.push(`HPが ${heal} 回復した。`); renderHud();
+    msgs.push({ text: `HPが ${heal} 回復した。`, fx: healFx(heal) });
     resolveTurn(msgs, false); return; // 回復は反撃を受けない
   }
   let d;
@@ -1733,10 +1800,9 @@ function castSpell(sp) {
   }
   battle.hp = Math.max(0, battle.hp - d);
   const tag = sp.kind === 'phys' ? (physEff(e) < 1 ? 'resist' : '') : (magMult(e, sp.kind) >= 2 ? 'weak' : (magMult(e, sp.kind) < 1 ? 'resist' : ''));
-  hitEnemy(d, tag);
-  msgs.push(`${e.name}に ${d} のダメージ！`);
+  msgs.push({ text: `${e.name}に ${d} のダメージ！`, fx: enemyHitFx(d, tag, battle.hp, battle.maxHp) });
   if (sp.kind === 'phys' && e.counter && battle.hp > 0) {
-    const cd = phys(e.atk, s.def); takeHit(cd); msgs.push(`${e.name}の反撃！　勇者は ${cd} のダメージ！`);
+    const cd = phys(e.atk, s.def); takeHit(cd); msgs.push({ text: `${e.name}の反撃！　勇者は ${cd} のダメージ！`, fx: heroHitFx(cd) });
     if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
     resolveTurn(msgs, false); return;
   }
@@ -1746,15 +1812,13 @@ function castSpell(sp) {
 function useDropBattle() {
   battle.guarding = false;
   const r = Math.min(MAXMP - G.mp, DROP_MP); G.drops--; G.mp += r;
-  renderHud();
-  resolveTurn([`魔力の雫を使った。魔力が ${r} 回復した。`], false);
+  resolveTurn([{ text: `魔力の雫を使った。魔力が ${r} 回復した。`, fx: () => renderHud() }], false);
 }
 function useHerbBattle() {
   battle.guarding = false;
   const s = stats(); G.herbs--;
   const heal = Math.min(s.maxHp - G.hp, Math.round(s.maxHp * HERB_HEAL_RATE)); G.hp += heal;
-  spawnDamage(heal, 'heal'); renderHud();
-  resolveTurn([`やくそうを使った。HPが ${heal} 回復した。`], false);
+  resolveTurn([{ text: `やくそうを使った。HPが ${heal} 回復した。`, fx: healFx(heal) }], false);
 }
 function playerDefend() {
   battle.guarding = false;
@@ -1763,9 +1827,15 @@ function playerDefend() {
 function playerMineuchi() {
   battle.guarding = false;
   battle.soldier.down = true;
-  const ua = $('u-ally'); if (ua) ua.classList.add('out');
-  const as = $('a-state'); if (as) { as.textContent = '気絶'; as.classList.remove('warn'); }
-  resolveTurn(['勇者のみねうち！　当て身で討伐隊の兵士を気絶させた！', '流れ弾は止まった——だが討伐隊は救護にかかりきりだ。もう頼れない。', '兵士「ぐ……なぜ、味方の私を……」'], true);
+  resolveTurn([
+    { text: '勇者のみねうち！　当て身で討伐隊の兵士を気絶させた！', fx: () => {
+      const ua = $('u-ally'); if (ua) ua.classList.add('out');
+      const as = $('a-state'); if (as) { as.textContent = '気絶'; as.classList.remove('warn'); }
+    } },
+    '兵士が倒れ、流れ弾は止まった。人質はもう巻き込まれない。',
+    'だが討伐隊は救護にかかりきり——この戦い、加勢はもう来ない。',
+    '兵士「ぐ……なぜ、味方の私を……」',
+  ], true);
 }
 function playerGuard() {
   battle.guarding = true;
@@ -1784,11 +1854,11 @@ function sacrificeBattle() {
   ], afterBattleFlow);
 }
 
-// --- 被弾＝恒久ステ低下 ---
+// --- 被弾＝恒久ステ低下(演出はメッセージ側の heroHitFx で行う) ---
 function takeHit(d) {
   G.hp = Math.max(0, G.hp - d); G.wear += WEAR_PER_HIT;
   G.hp = Math.min(G.hp, stats().maxHp); // 最大HPも縮むため、超過分を切り詰める
-  spawnDamage(d, 'me'); flashScreen(); renderHud(); save();
+  save();
 }
 
 // --- 敵・討伐隊・人質のターン ---
@@ -1800,7 +1870,7 @@ function resolveTurn(msgs, drewAggro) {
   if (battle.isFinale) {
     // 一騎打ち：敵はこちらだけを狙う
     const s = stats(); const ed = phys(e.atk, s.def); takeHit(ed);
-    msgs.push(`${e.name}のこうげき！　勇者は ${ed} のダメージ！`);
+    msgs.push({ text: `${e.name}のこうげき！　勇者は ${ed} のダメージ！`, fx: heroHitFx(ed) });
     if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
     showMsgs(msgs, battleMenu); return;
   }
@@ -1808,7 +1878,8 @@ function resolveTurn(msgs, drewAggro) {
   // 再生（討伐隊の削りより速い＝チマチマでは追いつかない）
   if (e.kind === 'regen' && battle.hp > 0) {
     const rg = Math.round(e.hp * 0.08); battle.hp = Math.min(battle.maxHp, battle.hp + rg);
-    setEnemyHpBar(); msgs.push(`${e.name}は再生した！（+${rg}）`);
+    const hpNow = battle.hp, maxNow = battle.maxHp;
+    msgs.push({ text: `${e.name}は再生した！（+${rg}）`, fx: () => setEnemyHpBarTo(hpNow, maxNow) });
   }
   // 討伐隊が敵を削る（兵士が気絶していると救護で動けない）
   if (battle.soldier && battle.soldier.down) {
@@ -1817,8 +1888,7 @@ function resolveTurn(msgs, drewAggro) {
     const sd = squadDps(e);
     if (sd > 0) {
       battle.hp = Math.max(0, battle.hp - sd);
-      setEnemyHpBar();
-      msgs.push(`討伐隊の攻撃！　${e.name}に ${sd} のダメージ！`);
+      msgs.push({ text: `討伐隊の攻撃！　${e.name}に ${sd} のダメージ！`, fx: enemyHitFx(sd, '', battle.hp, battle.maxHp) });
       if (battle.hp <= 0) { showMsgs(msgs, victory); return; }
     } else {
       msgs.push('討伐隊の攻撃！　だが、まったく刃が通らない！');
@@ -1828,17 +1898,15 @@ function resolveTurn(msgs, drewAggro) {
   // 人質への脅威
   hostageThreat(msgs);
   if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
-  if (e.threat === 'breath') {
-    const sp = $('e-spr'); // 予兆：ブレス直前は赤く発光
-    if (sp) sp.classList.toggle('charging', battle.breathTimer === 1 && !battle.hostage.dead);
-    if (battle.breathTimer === 1 && !battle.hostage.dead)
-      msgs.push(`${e.name}の喉が赤熱している……次のターン、ブレスが人質を焼く！（「かばう」か倒し切れ）`);
+  if (e.threat === 'breath' && battle.breathTimer === 1 && !battle.hostage.dead) {
+    msgs.push({ text: `${e.name}の喉が赤熱している……次のターン、ブレスが人質を焼く！（「かばう」か倒し切れ）`,
+      fx: () => { const sp = $('e-spr'); if (sp) sp.classList.add('charging'); } });
   }
 
   // 敵の反撃（こちらが手を出した時のみ）
   if (drewAggro) {
     const s = stats(); const ed = phys(e.atk, s.def); takeHit(ed);
-    msgs.push(`${e.name}のこうげき！　勇者は ${ed} のダメージを受けた！`);
+    msgs.push({ text: `${e.name}のこうげき！　勇者は ${ed} のダメージを受けた！`, fx: heroHitFx(ed) });
     if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
   }
   showMsgs(msgs, battleMenu);
@@ -1856,30 +1924,40 @@ function hostageThreat(msgs) {
     if (battle.breathTimer <= 0) { inflict = 999; byEnemy = true; battle.breathTimer = 3; }
   }
   if (inflict <= 0) return;
+  const isBreath = inflict === 999;
+  const clearCharge = () => { const sp = $('e-spr'); if (sp) sp.classList.remove('charging'); };
   if (battle.guarding) {
     const dd = Math.min(inflict, byEnemy ? 30 : inflict);
     takeHit(dd);
-    msgs.push(`巻き込みの一撃を勇者が受け止めた！　${dd} のダメージ！`);
+    msgs.push({ text: byEnemy ? `${e.name}の一撃を、勇者が身を挺して受け止めた！　${dd} のダメージ！`
+                              : `人質を狙う流れ弾を、勇者が受け止めた！　${dd} のダメージ！`,
+      fx: () => { if (isBreath) clearCharge(); heroHitFx(dd)(); } });
   } else {
     battle.hostage.hp = Math.max(0, battle.hostage.hp - inflict);
-    setCitizenBar();
-    msgs.push(byEnemy ? `${e.name}が人質を直接襲った！　市民に ${Math.min(inflict,99)} のダメージ！`
-                      : `攻撃が市民を巻き込んだ！　市民に ${inflict} のダメージ！`);
+    const hHpNow = battle.hostage.hp;
+    msgs.push({ text: byEnemy ? `${e.name}が人質を直接襲った！　市民に ${Math.min(inflict,99)} のダメージ！`
+                              : `討伐隊の流れ弾が市民に当たった！　${inflict} のダメージ！`,
+      fx: () => { if (isBreath) clearCharge(); setCitizenBarTo(hHpNow); } });
     if (battle.hostage.hp <= 0) {
-      battle.hostage.dead = true; const uc = $('u-citizen'); if (uc) uc.classList.add('out');
-      msgs.push('市民は倒れてしまった……');
+      battle.hostage.dead = true;
+      msgs.push({ text: '市民は倒れてしまった……', fx: () => { const uc = $('u-citizen'); if (uc) uc.classList.add('out'); } });
     }
   }
 }
-function hitEnemy(d, tag) {
-  const icon = $('e-icon'), spr = $('e-spr');
-  if (icon) { icon.classList.remove('shake'); void icon.offsetWidth; icon.classList.add('shake'); }
-  if (spr) { spr.classList.remove('flash'); void spr.offsetWidth; spr.classList.add('flash'); }
-  if (typeof d === 'number') spawnDamage(d, tag);
-  setEnemyHpBar();
+// 演出はすべて「そのメッセージが表示された瞬間」に走る(数値はスナップショットで渡す)
+function setEnemyHpBarTo(hp, max) { const b = $('e-hp'); if (b) b.style.width = Math.round(Math.max(0, hp) / max * 100) + '%'; }
+function setCitizenBarTo(hp) { const b = $('c-hp'); if (b) b.style.width = Math.round(Math.max(0, hp) / 40 * 100) + '%'; }
+function enemyHitFx(d, tag, hpAfter, max) {
+  return () => {
+    const icon = $('e-icon'), spr = $('e-spr');
+    if (icon) { icon.classList.remove('shake'); void icon.offsetWidth; icon.classList.add('shake'); }
+    if (spr) { spr.classList.remove('flash'); void spr.offsetWidth; spr.classList.add('flash'); }
+    if (typeof d === 'number') spawnDamage(d, tag);
+    setEnemyHpBarTo(hpAfter, max);
+  };
 }
-function setEnemyHpBar() { const b = $('e-hp'); if (b) b.style.width = Math.round(battle.hp / battle.maxHp * 100) + '%'; }
-function setCitizenBar() { const b = $('c-hp'); if (b) b.style.width = Math.round(battle.hostage.hp / battle.hostage.max * 100) + '%'; }
+function heroHitFx(d) { return () => { spawnDamage(d, 'me'); flashScreen(); renderHud(); }; }
+function healFx(v) { return () => { spawnDamage(v, 'heal'); renderHud(); }; }
 function spawnDamage(d, tag) {
   const sc = document.querySelector('.battle-scene'); if (!sc) return;
   const el = document.createElement('div');
@@ -1891,9 +1969,12 @@ function flashScreen() { const f = $('flash'); if (!f) return; f.classList.remov
 
 // ===== 勝敗 =====
 function victory() {
-  const ei = $('e-icon'); if (ei) ei.classList.add('dead');
   const e = battle.e;
-  const msgs = [`${e.name} をたおした！`];
+  const msgs = [{ text: `${e.name} をたおした！`, fx: () => {
+    const ei = $('e-icon'); if (ei) ei.classList.add('dead');
+    const sp = $('e-spr'); if (sp) sp.classList.remove('charging');
+    setEnemyHpBarTo(0, 1);
+  } }];
   if (battle.isFinale) {
     G.finaleDone = true; battle = null;
     if (G.choices.corrupted) {
@@ -1969,7 +2050,7 @@ function defeat() {
 function showFinaleGate() {
   renderHud();
   stage.innerHTML = `<div class="map-scene"><h2>🏡 故郷の村へ</h2>
-    <div class="map-sub">残る魔物は、あと1体。ただのスライムだ——いや、「ただのスライム」に、今のお前は勝てるのか。<br>やくそうと残りの魔力だけが頼りだ。整えてから、扉を叩け。</div></div>`;
+    <div class="map-sub">残る魔物は、あと1体。ただのスライムだ——いや、「ただのスライム」に、今のお前は勝てるのか。<br>やくそうと残りの魔力だけが頼りだ。整えてから、村の門をくぐれ。</div></div>`;
   setCmds([
     { label: '⚔️ 最後の戦いへ', primary: true, wide: true, fn: startFinale },
     { label: '↩ 引き返す', wide: true, fn: renderWorld },
@@ -1991,7 +2072,8 @@ const EVENTS = {
     '魔王城の残党を、すべて殲滅した。',
     '天空に浮かぶこの城も、もう用済みだ。',
     '勇者は飛行艇に乗り込み、雲を抜けて——地上へと降りていく。',
-    '眼下に広がるのは、まだ見ぬ大地。この先に何が待つのか、空の上からは分からない。',
+    '眼下に広がるのは、行きに駆け抜けたはずの大地。だがあのときは、魔王のことしか見ていなかった。',
+    'どこに残党が潜み、誰が人質に取られているのか——降りて、確かめるしかない。',
   ], next),
 
   // ===== RPGの逆：仲間が“抜けていく” =====
@@ -2173,6 +2255,24 @@ const EVENTS = {
     '伝説になるどころか、自分の物語は、もう正しく覚えられてさえいない。',
   ], next),
 
+  // ===== 隠し：見逃した魔物との再会（沼を越えてから砦に引き返すと）=====
+  spared_reunion: (next) => showMsgs([
+    '砦の跡に、見覚えのある魔物がいた。——あのとき見逃した残党だ。',
+    '魔物「げっ、勇者！　お、おれはもう戦わねぇぞ！」',
+    '魔物「……ここで畑をやってる。魔王軍の砦の跡地なら、誰も文句を言わねぇからな」',
+    'よく見れば、崩れた石壁の間に、小さな緑の列が並んでいる。',
+    '魔物「あんたが最後の一体を斬っても、おれのことは数に入れるなよ。……もう魔物じゃなくて、百姓だ」',
+  ], next),
+
+  // ===== 隠し：スライムとの再会（沼を越えてから山脈に引き返すと）=====
+  slime_reunion: (next) => showMsgs([
+    '山道の岩陰に、見覚えのある小さな影。……あのスライムだ。少し大きくなった気がする。',
+    'スライムは勇者を見つけると、ぴょんと跳ねて、岩の上を指すように震えた。',
+    '——固くなったパンが、ひとかけら。あのときの、お返しのつもりらしい。',
+    '受け取るわけにはいかない。だが勇者は、少しだけ笑って頭を下げた。',
+    'スライムは満足そうに震えて、茂みの奥へ消えていった。',
+  ], next),
+
   // ===== 選択：村で休む =====
   rest_village: (next) => {
     showChoice([
@@ -2223,7 +2323,8 @@ function showEnding() {
   else if (saved === 0) lines.push('救えた市民は、いなかった。勇者は強いまま、ひとりだった。');
   else lines.push(`守った市民：${saved}人。守れなかった市民：${lost}人。勇者は、その名前を生涯忘れない。`);
   // 選択の帰結
-  if (G.choices.spared) lines.push('見逃したあの魔物は、どこかで静かに生きているだろうか。');
+  if (G.choices.sparedReunion) lines.push('砦の跡では、魔物が育てた最初の麦が実ったそうだ。世界から魔物はいなくなった——そういうことにしておく。');
+  else if (G.choices.spared) lines.push('見逃したあの魔物は、どこかで静かに生きているだろうか。');
   if (G.choices.acceptedOffer) lines.push('沼で背を向けた悲鳴は、もう夢にしか出てこない。');
   if (G.choices.soldSword) lines.push('英雄の剣は、もう手元にない。畑を耕す鍬の方が、今は手に馴染む。');
   if (G.choices.bride === 'bianna') lines.push('村では今日も水車が回っているという。ビアンナからの手紙は、それだけで十分だった。');
@@ -2231,7 +2332,8 @@ function showEnding() {
   else if (G.choices.bride === 'none') lines.push('あの街道のふたりは、自分たちの手で家を建て直したそうだ。英雄がいなくても、人は立ち上がる。');
   if (G.choices.kingGave >= 3) lines.push('王都の凱旋式は盛大だったらしい。勇者の席は、なかった。');
   if (G.choices.casinoDoll) lines.push('机の上には、実力堂でもらった小さな英雄人形。誰も欲しがらなかったそれだけが、彼の旅を知っている。');
-  if (G.choices.slime) lines.push('山道の小さなスライムのことを、勇者はときどき思い出す。');
+  if (G.choices.slimeReunion) lines.push('山道でもらい損ねた、固いパンのひとかけら。あれが旅で差し出された、唯一の褒美だったのかもしれない。');
+  else if (G.choices.slime) lines.push('山道の小さなスライムのことを、勇者はときどき思い出す。');
 
   stage.innerHTML = `<div class="ending-scene">
     <div>${makeSprite('hero', 7)}</div>
