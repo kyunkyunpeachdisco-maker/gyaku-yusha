@@ -1534,6 +1534,7 @@ function showKokoroe() {
     `<b>たびのこころえ</b>`,
     `敵の攻撃を受けるたび、レベルは恒久的に下がる。HPと違って、二度と戻らない。`,
     `敵が勇者を狙うのは、勇者が手を出したターンだけ。攻撃じゅもん・みねうち・かばうも「手出し」に入る。道具と回復と様子見なら、狙われない。`,
+    `「ようすをみる」で敵を観察すれば、弱点と手口がわかる。狙われはしないが、その間も人質への脅威は進む。`,
     `じゅもんの威力はレベルが下がっても衰えない。ただし魔力は自然回復しない——補給は行商人の「魔力の雫」だけだ。`,
     `そして弱り切れば、じゅもんの使い方そのものを忘れる。ゆうしゃぎりはLv50、ライガはLv40、フレイはLv20、リカバはLv15を切ると唱えられない。`,
     `この世界に運はない。同じ状況で同じ手を打てば、必ず同じ結果になる。`,
@@ -1679,7 +1680,7 @@ function startBattle(key, region, roomIdx) {
       '敵が勇者を狙うのは、<b>勇者が手を出したターンだけ</b>。そして一発受けるごとに、力は恒久的に削れていく。',
     ]);
   }
-  if (!G.seenHint[key]) { G.seenHint[key] = true; intro = intro.concat(e.hint); }
+  // 敵ごとの弱点ヒントは自動表示しない——「ようすをみる」で観察したときに出る
   if (e.threat === 'breath') intro.push('体の奥が、赤く光りはじめている……（ブレスの予兆）');
   showMsgs(intro, battleMenu);
 }
@@ -1715,7 +1716,6 @@ function renderBattle(e, isFinale) {
       <div class="enemy-icon" id="e-icon"><div class="spr" id="e-spr">${makeSprite(e.sprite, px)}</div></div>
       <div class="enemy-shadow"></div>
       <div class="enemy-name">${e.name}</div>
-      ${e.tag && !isFinale ? `<div class="enemy-tag">【${e.tag}】</div>` : ''}
       <div class="bar hp enemy-hpbar"><div id="e-hp" style="width:100%"></div></div>
       ${sub}</div>`;
 }
@@ -1823,7 +1823,12 @@ function useHerbBattle() {
 }
 function playerDefend() {
   battle.guarding = false;
-  resolveTurn(['勇者は手を出さず、様子をうかがっている。'], false); // 手を出さない＝狙われない
+  // 手を出さない＝狙われない。観察すれば敵の手口がわかる(ただしそのターンも人質への脅威は進む)
+  if (!battle.isFinale && battle.e.hint) {
+    resolveTurn([`勇者は${battle.e.name}をじっくり観察した。`].concat(battle.e.hint), false);
+    return;
+  }
+  resolveTurn(['勇者は手を出さず、様子をうかがっている。'], false);
 }
 function playerMineuchi() {
   battle.guarding = false;
