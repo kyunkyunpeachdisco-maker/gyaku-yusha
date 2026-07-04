@@ -633,7 +633,21 @@ function backToWorld(ri) {
   renderWorld();
 }
 function tryFinale() {
-  if (G.limbo) { showMsgs(['「悔い改めよ」'], renderWorld); return; }
+  if (G.limbo) {
+    if (!G.choices.limboThrone) {
+      G.choices.limboThrone = true; save();
+      showMsgs([
+        '家の扉を、開けた。',
+        '——そこは、玉座の間だった。',
+        '見覚えのある椅子に、見覚えのある影が座っている。',
+        '魔王「よくぞここまで来た、勇者よ」',
+        '魔王「——約束どおり、<b>世界の半分</b>をお前にやろう」',
+        '影は、いつまでも嗤っていた。',
+      ], renderWorld);
+      return;
+    }
+    showMsgs(['「悔い改めよ」'], renderWorld); return;
+  }
   if (allRegionsDone()) showFinaleGate();
   else showMsgs(['まだ残党が残っている。村へは帰れない。'], renderWorld);
 }
@@ -2204,23 +2218,26 @@ const EVENTS = {
     const COST = 2000;
     showChoice([
       '砦を出た街道で、ふたりの女性が勇者を待っていた。',
-      '幼なじみの<b>ビアンナ</b>と、砦下の商家の娘<b>フロリア</b>。……昔、どちらとも淡い約束をした気がする。',
-      'ビアンナ「久しぶりね。……ううん、結婚とかじゃないの。戦で水車小屋が焼けたのよ」',
-      'フロリア「うちは商会の蔵が燃えたわ。あなた、英雄なんでしょう？　少しくらい、ね？」',
-      `路銀で建て直せるのは、どちらか一方だけだ。（${COST.toLocaleString()}G）`,
+      '幼なじみの<b>ビアンナ</b>と、砦下の商家の娘<b>フロリア</b>。',
+      'ビアンナ「おかえりなさい、あなた。出征の前の晩、村の教会で式を挙げて以来ね」',
+      'フロリア「……あら。うちは砦の礼拝堂で挙げたけど。出征の前の晩に」',
+      '街道に、長い沈黙が落ちた。',
+      'ふたり「「どういうこと？」」',
+      `勇者は選ばなければならない。どちらとの婚姻を続けるのか——手切れ金は ${COST.toLocaleString()}G だ。`,
     ], [
-      { label: `ビアンナの水車小屋 (${COST.toLocaleString()}G)`, primary: true, disabled: G.gold < COST, fn: () => {
+      { label: `ビアンナと生きる (フロリアに${COST.toLocaleString()}G)`, primary: true, disabled: G.gold < COST, fn: () => {
         G.gold -= COST; G.choices.bride = 'bianna'; renderHud(); save();
-        showMsgs(['ビアンナ「……ありがと。昔のあなたは、剣を振るしか能がなかったのにね」',
-          '選ばれなかったフロリアは、肩をすくめて笑った。「商売敵が増えるだけだったわね」'], next); } },
-      { label: `フロリアの商会の蔵 (${COST.toLocaleString()}G)`, disabled: G.gold < COST, fn: () => {
+        showMsgs(['フロリア「……戦争のせい、ってことにしておいてあげる。帳簿にもそう書くわ」',
+          'ビアンナ「帰ったら、ゆっくり話し合いましょうね。<b>ゆっくり</b>」'], next); } },
+      { label: `フロリアと生きる (ビアンナに${COST.toLocaleString()}G)`, disabled: G.gold < COST, fn: () => {
         G.gold -= COST; G.choices.bride = 'floria'; renderHud(); save();
-        showMsgs(['フロリア「感謝するわ。<b>商会は恩を忘れない</b>——以後、行商人はあなたに半額よ」',
-          'ビアンナは何も言わず、ただ「元気でね」とだけ言った。'], next); } },
-      { label: 'どちらも断る', fn: () => { G.choices.bride = 'none';
-        showMsgs(['勇者は頭を下げた。「すまない。……もう、英雄をあてにしないでくれ」',
-          'ふたりは顔を見合わせ、少し笑った。「——変わったのね」',
-          'その表情は、どこか安心しているようにも見えた。'], next); } },
+        showMsgs(['フロリア「賢明ね。<b>商会は身内を大事にするの</b>——以後、行商人はあなたに半額よ」',
+          'ビアンナは金貨の袋を受け取らず、地面に置いたまま去った。'], next); } },
+      { label: '選べない……', fn: () => { G.choices.bride = 'none';
+        showMsgs(['ふたりは顔を見合わせた。それから、ほとんど同時に踵を返した。',
+          'ビアンナ「行きましょ、フロリアさん。飲み直し」',
+          'フロリア「ええ。最低な男の話なら、朝までできそう」',
+          '勇者だけが、街道に残された。'], next); } },
     ]);
   },
 
@@ -2268,6 +2285,8 @@ const EVENTS = {
         G.lost++;
         renderHud(); save();
         showMsgs(['ひと晩、泥のように眠った。HPと魔力が戻った。',
+          '朝。宿の主人が、目を合わせずに言った。',
+          '主人「……ゆうべは、うなされていましたね」',
           '夜明け、遠くで火の手が上がっていた。先行した討伐隊が、また一人——。'], next);
       } },
       { label: '休まず進む', fn: () => showMsgs(['勇者は足を止めなかった。'], next) },
@@ -2310,9 +2329,9 @@ function showEnding() {
   else if (G.choices.spared) lines.push('見逃したあの魔物は、どこかで静かに生きているだろうか。');
   if (G.choices.acceptedOffer) lines.push('沼で背を向けた悲鳴は、もう夢にしか出てこない。');
   if (G.choices.soldSword) lines.push('英雄の剣は、もう手元にない。畑を耕す鍬の方が、今は手に馴染む。');
-  if (G.choices.bride === 'bianna') lines.push('村では今日も水車が回っているという。ビアンナからの手紙は、それだけで十分だった。');
-  else if (G.choices.bride === 'floria') lines.push('フロリア商会は大きくなった。帳簿の隅の「恩人」の欄に、勇者の名が残っている。');
-  else if (G.choices.bride === 'none') lines.push('あの街道のふたりは、自分たちの手で家を建て直したそうだ。英雄がいなくても、人は立ち上がる。');
+  if (G.choices.bride === 'bianna') lines.push('ビアンナとの家には、いまも口論が絶えないらしい。それでも食卓には、毎晩ふたり分の皿が並ぶ。');
+  else if (G.choices.bride === 'floria') lines.push('フロリア商会は大きくなった。帳簿の「経費」の欄に、手切れ金と書かれた行がひとつだけある。');
+  else if (G.choices.bride === 'none') lines.push('街道に、ふたりの女が開いた酒場があるという。店の名は「英雄の裏切り亭」。今夜も繁盛しているらしい。');
   if (G.choices.kingGave >= 3) lines.push('王都の凱旋式は盛大だったらしい。勇者の席は、なかった。');
   if (G.choices.casinoDoll) lines.push('机の上には、実力堂でもらった小さな英雄人形。誰も欲しがらなかったそれだけが、彼の旅を知っている。');
   if (G.choices.slimeReunion) lines.push('山道でもらい損ねた、固いパンのひとかけら。あれが旅で差し出された、唯一の褒美だったのかもしれない。');
@@ -2323,7 +2342,23 @@ function showEnding() {
     <div>${head}<br><br>${lines.join('<br>')}<br><br>${tail}</div>
     <div class="the-beginning">${title}</div></div>`;
   clearSave();
-  setCmds([{ label: 'タイトルへ', wide: true, fn: () => { G = null; showTitle(); } }], true);
+  setCmds([{ label: 'タイトルへ', wide: true, fn: showNameAsk }], true);
+}
+// エンディングの最後に、初めて名前を聞かれる
+function showNameAsk() {
+  hud.style.display = 'none'; msgwin.style.display = 'none';
+  stage.innerHTML = `<div class="ending-scene">
+    <div>そういえば、まだ聞いていなかった。</div>
+    <div><b>あなたの名前は？</b></div>
+    <div><input id="hero-name" maxlength="8" autocomplete="off"
+      style="font-family:inherit;font-size:18px;text-align:center;letter-spacing:2px;user-select:text;-webkit-user-select:text;
+      background:#0a0b1c;color:#f4f4f8;border:2px solid #f4f4f8;border-radius:5px;padding:10px 14px;width:200px"></div></div>`;
+  setCmds([{ label: 'なのる', primary: true, wide: true, fn: () => {
+    const nm = ($('hero-name').value || '').trim();
+    G = null;
+    if (!nm) { showTitle(); return; }
+    showMsgs([`「${nm}」。`, '……そうか。', 'もう、誰もその名では呼ばない。'], showTitle);
+  } }], true);
 }
 
 // ===== 起動 =====
