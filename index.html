@@ -248,6 +248,8 @@ const HERB_BASE_PRICE = 600;
 const DROP_BASE_PRICE = 2000;   // 魔力の雫の初値（買うたび倍）
 const DROP_MP = 35;             // 雫1つで戻る魔力
 const WEAR_PER_HIT = 3.0;       // 被弾1回でレベルが下がる量（恒久）。摩耗は被弾からのみ生まれる
+const WEAR_LOW_LV = 40;         // このLv以下まで削れた体は、もう削れるものが少ない
+const WEAR_PER_HIT_LOW = 2.0;   // ↑のときの被弾1回の摩耗。真面目な旅がLv1まで崩れ落ちる螺旋を緩める
 const MAXMP = 180;              // 魔力＝有限。「無傷で仕留める」手段はこの残量が上限
 const MATK = 130;               // 呪文の冴えは衰えない——衰えるのは体のほうだ
 const REST_MP = 0.0;            // 魔力は戦線移動でも戻らない
@@ -281,7 +283,7 @@ const ENEMIES = {
                 tag:'物理すり抜け・人質に取り憑く', hint:['実体がない。剣も矢も、霧を斬るように抜けていく。','人質へ、にじり寄っている。'] },
   mandragora: { name:'マンドラゴラ',         sprite:'mandragora',  hp:230, atk:70,  def:50,  kind:'regen',   threat:'splash', counter:false, gold:350,
                 tag:'毎ターン再生', hint:['付けた傷が、見る間にふさがっていく。','生半可な削りでは、追いつきそうにない。'] },
-  wolf:       { name:'キラーウルフ',         sprite:'wolf',        hp:190, atk:60,  def:35,  kind:'squad',   threat:'fast',   counter:false, gold:300,
+  wolf:       { name:'キラーウルフ',         sprite:'wolf',        hp:230, atk:60,  def:35,  kind:'squad',   threat:'fast',   counter:false, gold:300,
                 tag:'2回行動', hint:['速い。兵士たちが翻弄され、乱れた射線が人質に向いている。','最初の一瞬で決まる——そういう間合いだ。'] },
   harpy:      { name:'ハーピー',             sprite:'harpy',       hp:160, atk:55,  def:30,  kind:'squad',   threat:'direct', counter:false, gold:250,
                 tag:'人質を直接さらう', hint:['翼が人質の真上で円を描いている。','狙いは戦士ではない——さらう気だ。'] },
@@ -1862,7 +1864,7 @@ function sacrificeBattle() {
 
 // --- 被弾＝恒久ステ低下(演出はメッセージ側の heroHitFx で行う) ---
 function takeHit(d) {
-  G.hp = Math.max(0, G.hp - d); G.wear += WEAR_PER_HIT;
+  G.hp = Math.max(0, G.hp - d); G.wear += lvOf() <= WEAR_LOW_LV ? WEAR_PER_HIT_LOW : WEAR_PER_HIT;
   G.hp = Math.min(G.hp, stats().maxHp); // 最大HPも縮むため、超過分を切り詰める
   save();
 }
