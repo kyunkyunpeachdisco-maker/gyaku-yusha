@@ -279,14 +279,14 @@ const ENEMIES = {
                 tag:'重装甲・人質を直接狙う・構え', hint:['黒鉄の重装甲。剣も矢も弾かれている。','その眼窩は討伐隊を見ていない——人質だけを見ている。','ときおり大剣を低く構え、ぴたりと動きを止める。'] },
   scorpion:   { name:'メタルスコルピオン',   sprite:'scorpion',    hp:340, atk:110, def:95,  kind:'thunder', threat:'splash', counter:false, gold:450, gimmick:'shell',
                 tag:'雷が弱点・殻', hint:['金属の殻が鈍く光る。雷なら、よく通りそうだ。','炎は殻に阻まれるだろう。','殻を閉じている間は、何も通りそうにない。'] },
-  wraith:     { name:'レイス',               sprite:'wraith',      hp:250, atk:95,  def:60,  kind:'magic',   threat:'direct', counter:false, gold:400,
-                tag:'物理すり抜け・人質に取り憑く', hint:['実体がない。剣も矢も、霧を斬るように抜けていく。','人質へ、にじり寄っている。'] },
+  wraith:     { name:'レイス',               sprite:'wraith',      hp:250, atk:95,  def:60,  kind:'magic',   threat:'direct', counter:false, gold:400, gimmick:'possess',
+                tag:'物理すり抜け・人質に取り憑く', hint:['実体がない。剣も矢も、霧を斬るように抜けていく。','人質へ、にじり寄っている。','ときおり人質の体に入り込む——そのまま撃てば、人質ごと焼くことになる。'] },
   mandragora: { name:'マンドラゴラ',         sprite:'mandragora',  hp:230, atk:70,  def:50,  kind:'regen',   threat:'splash', counter:false, gold:350,
                 tag:'毎ターン再生', hint:['付けた傷が、見る間にふさがっていく。','生半可な削りでは、追いつきそうにない。'] },
   wolf:       { name:'キラーウルフ',         sprite:'wolf',        hp:230, atk:60,  def:35,  kind:'squad',   threat:'fast',   counter:false, gold:300,
                 tag:'2回行動', hint:['速い。兵士たちが翻弄され、乱れた射線が人質に向いている。','最初の一瞬で決まる——そういう間合いだ。'] },
-  harpy:      { name:'ハーピー',             sprite:'harpy',       hp:160, atk:55,  def:30,  kind:'squad',   threat:'direct', counter:false, gold:250,
-                tag:'人質を直接さらう', hint:['翼が人質の真上で円を描いている。','狙いは戦士ではない——さらう気だ。'] },
+  harpy:      { name:'ハーピー',             sprite:'harpy',       hp:160, atk:55,  def:30,  kind:'squad',   threat:'direct', counter:false, gold:250, gimmick:'fly',
+                tag:'人質を直接さらう・空中', hint:['翼が人質の真上で円を描いている。','狙いは戦士ではない——さらう気だ。','舞い上がられたら、剣も矢も届かない。'] },
 };
 // 最終戦。スライムは弱い魔物のまま——大きく見えるのは、勇者が削れ切ったときだけ。
 // スライムの壁=Lv5以下: 回復を捨てて殴り合っても、やくそうを満載しても勝てない。受け皿はくろい心臓。
@@ -1773,9 +1773,23 @@ function useDarkItem() {
 // --- 敵ごとの型（ターンで切り替わる。乱数なし）---
 // 殻: 奇数ターンは閉じている——剣もじゅもんも討伐隊も、ほぼ通らない
 // 構え: 偶数ターンは大剣を構えている——手を出せば半分しか通らず、斬り返される。構え中は人質も襲わない
+// 取り憑き: 偶数ターンは人質の中にいる——撃てば人質ごと傷つける。取り憑いている間は人質を襲わない
+// 空中: 偶数ターンは人質をつかんで空にいる——剣も討伐隊の矢も届かない
 const shellClosed = () => battle.e.gimmick === 'shell' && battle.turn % 2 === 1;
 const inStance = () => battle.e.gimmick === 'stance' && battle.turn % 2 === 0;
-function gimmickDmg(d, msgs) {
+const possessing = () => battle.e.gimmick === 'possess' && battle.turn % 2 === 0 && !battle.hostage.dead;
+const airborne = () => battle.e.gimmick === 'fly' && battle.turn % 2 === 0 && !battle.hostage.dead;
+function gimmickDmg(d, msgs, isPhys) {
+  if (possessing()) {
+    battle.hostage.hp = Math.max(0, battle.hostage.hp - 20);
+    const hHpNow = battle.hostage.hp;
+    msgs.push({ text: '——人質の体ごと、撃ち抜いてしまった！　市民に 20 のダメージ！', fx: () => setCitizenBarTo(hHpNow) });
+    if (battle.hostage.hp <= 0) {
+      battle.hostage.dead = true;
+      msgs.push({ text: '市民は倒れてしまった……', fx: () => { const uc = $('u-citizen'); if (uc) uc.classList.add('out'); } });
+    }
+  }
+  if (airborne() && isPhys) { msgs.push('——空の上までは、剣が届かない！'); return 0; }
   if (shellClosed()) { msgs.push('——固い殻に阻まれた！'); return Math.max(1, Math.round(d * 0.1)); }
   if (inStance()) { msgs.push('——構えた大剣に受け流された！'); return Math.max(1, Math.round(d * 0.5)); }
   return d;
@@ -1786,7 +1800,7 @@ function playerAttack() {
   battle.guarding = false;
   const s = stats(), e = battle.e;
   const note = [];
-  let d = gimmickDmg(Math.max(1, Math.round(phys(s.atk, e.def) * physEff(e))), note);
+  let d = gimmickDmg(Math.max(1, Math.round(phys(s.atk, e.def) * physEff(e))), note, true);
   battle.hp = Math.max(0, battle.hp - d);
   const msgs = [{ text: `勇者のこうげき！　${e.name}に ${d} のダメージ！`, fx: enemyHitFx(d, physEff(e) < 1 || note.length ? 'resist' : '', battle.hp, battle.maxHp) }];
   if (note.length) msgs.push(...note); else if (physEff(e) < 1) msgs.push('——ほとんど効いていない！');
@@ -1816,7 +1830,7 @@ function castSpell(sp) {
     d = Math.max(1, Math.round(sp.power * s.matk * rand() * mult));
     if (mult >= 2) msgs.push('弱点を突いた！'); else if (mult < 1) msgs.push('効果はいまひとつだ……');
   }
-  const n0 = msgs.length; d = gimmickDmg(d, msgs);
+  const n0 = msgs.length; d = gimmickDmg(d, msgs, sp.kind === 'phys');
   battle.hp = Math.max(0, battle.hp - d);
   const tag = msgs.length > n0 ? 'resist' : sp.kind === 'phys' ? (physEff(e) < 1 ? 'resist' : '') : (magMult(e, sp.kind) >= 2 ? 'weak' : (magMult(e, sp.kind) < 1 ? 'resist' : ''));
   msgs.push({ text: `${e.name}に ${d} のダメージ！`, fx: enemyHitFx(d, tag, battle.hp, battle.maxHp) });
@@ -1908,7 +1922,8 @@ function resolveTurn(msgs, drewAggro) {
   if (!(battle.soldier && battle.soldier.down)) {
     let sd = squadDps(e);
     if (sd > 0 && shellClosed()) sd = Math.max(1, Math.round(sd * 0.1));
-    if (sd > 0) {
+    if (sd > 0 && airborne()) msgs.push(`討伐隊の矢は、空の${e.name}まで届かない！`);
+    else if (sd > 0) {
       battle.hp = Math.max(0, battle.hp - sd);
       msgs.push({ text: `討伐隊の攻撃！　${e.name}に ${sd} のダメージ！`, fx: enemyHitFx(sd, '', battle.hp, battle.maxHp) });
       if (battle.hp <= 0) { showMsgs(msgs, victory); return; }
@@ -1919,6 +1934,7 @@ function resolveTurn(msgs, drewAggro) {
 
   // 人質への脅威（構えている間は動かない）
   if (inStance()) msgs.push(`${e.name}は大剣を構えたまま、動かない。`);
+  else if (possessing()) msgs.push(`${e.name}は人質の中で、息をひそめている。`);
   else hostageThreat(msgs);
   if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
   if (e.threat === 'breath' && battle.breathTimer === 1 && !battle.hostage.dead) {
@@ -1940,6 +1956,8 @@ function resolveTurn(msgs, drewAggro) {
   battle.turn++;
   if (e.gimmick === 'stance' && inStance()) msgs.push(`${e.name}が大剣を低く構えた……`);
   else if (e.gimmick === 'shell') msgs.push(shellClosed() ? `${e.name}は殻を固く閉じた。` : `${e.name}の殻が開いた！`);
+  else if (e.gimmick === 'possess' && !battle.hostage.dead) msgs.push(possessing() ? `${e.name}が人質の体にすべり込んだ……` : `${e.name}が人質から抜け出した。`);
+  else if (e.gimmick === 'fly' && !battle.hostage.dead) msgs.push(airborne() ? `${e.name}が人質をつかんで舞い上がった！` : `${e.name}が地上に降りてきた。`);
   showMsgs(msgs, battleMenu);
 }
 
