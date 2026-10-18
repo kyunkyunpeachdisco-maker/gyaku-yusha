@@ -275,10 +275,10 @@ const ENEMIES = {
                 tag:'ブレス予告', hint:['喉の奥に火が溜まっていく。赤く光れば、次は吐く。','その首は——人質のほうを向いている。'] },
   icedrake:   { name:'アイスドレイク',       sprite:'icedrake',    hp:470, atk:155, def:100, kind:'fire',    threat:'splash', counter:false, gold:600,
                 tag:'炎が弱点', hint:['氷の鱗が、松明の火を嫌うように揺れている。','雷も剣も、この氷にはただ滑るだけに見える。'] },
-  deathknight:{ name:'デスナイト',           sprite:'deathknight', hp:380, atk:120, def:135, kind:'magic',   threat:'direct', counter:false, gold:500,
-                tag:'重装甲・人質を直接狙う', hint:['黒鉄の重装甲。剣も矢も弾かれている。','その眼窩は討伐隊を見ていない——人質だけを見ている。'] },
-  scorpion:   { name:'メタルスコルピオン',   sprite:'scorpion',    hp:340, atk:110, def:95,  kind:'thunder', threat:'splash', counter:false, gold:450,
-                tag:'雷が弱点', hint:['金属の殻が鈍く光る。雷なら、よく通りそうだ。','炎は殻に阻まれるだろう。'] },
+  deathknight:{ name:'デスナイト',           sprite:'deathknight', hp:380, atk:120, def:135, kind:'magic',   threat:'direct', counter:false, gold:500, gimmick:'stance',
+                tag:'重装甲・人質を直接狙う・構え', hint:['黒鉄の重装甲。剣も矢も弾かれている。','その眼窩は討伐隊を見ていない——人質だけを見ている。','ときおり大剣を低く構え、ぴたりと動きを止める。'] },
+  scorpion:   { name:'メタルスコルピオン',   sprite:'scorpion',    hp:340, atk:110, def:95,  kind:'thunder', threat:'splash', counter:false, gold:450, gimmick:'shell',
+                tag:'雷が弱点・殻', hint:['金属の殻が鈍く光る。雷なら、よく通りそうだ。','炎は殻に阻まれるだろう。','殻を閉じている間は、何も通りそうにない。'] },
   wraith:     { name:'レイス',               sprite:'wraith',      hp:250, atk:95,  def:60,  kind:'magic',   threat:'direct', counter:false, gold:400,
                 tag:'物理すり抜け・人質に取り憑く', hint:['実体がない。剣も矢も、霧を斬るように抜けていく。','人質へ、にじり寄っている。'] },
   mandragora: { name:'マンドラゴラ',         sprite:'mandragora',  hp:230, atk:70,  def:50,  kind:'regen',   threat:'splash', counter:false, gold:350,
@@ -1663,7 +1663,8 @@ function physEff(e) { return e.kind === 'squad' ? 1.0 : 0.15; }
 function magMult(e, elem) {
   if (e.kind === 'fire')    return elem === 'fire' ? 2.0 : 0.4;
   if (e.kind === 'thunder') return elem === 'thunder' ? 2.0 : 0.4;
-  return 1.0; // magic / regen / squad はどの属性でも等倍
+  if (e.kind === 'squad')   return 0.5; // 剣が通る相手に、じゅもんは半分しか効かない
+  return 1.0; // magic / regen はどの属性でも等倍
 }
 // 討伐隊の火力：物理無効（magic）にはまったく通らない
 function squadDps(e) { return e.kind === 'magic' ? 0 : e.kind === 'squad' ? Math.round(e.hp * 0.14) : Math.round(e.hp * 0.07); }
@@ -1672,7 +1673,7 @@ function startBattle(key, region, roomIdx) {
   const e = ENEMIES[key];
   battle = { key, e, isFinale: false, region, roomIdx, lvStart: lvOf(), hp: e.hp, maxHp: e.hp,
              hostage: { hp: 40, max: 40, dead: false }, soldier: { down: false },
-             breathTimer: (e.threat === 'breath' ? 3 : -1), guarding: false };
+             breathTimer: (e.threat === 'breath' ? 3 : -1), guarding: false, turn: 1 };
   save();
   renderBattle(e, false);
   let intro = [`${e.name} があらわれた！`, `${e.name}は市民を人質に取っている！`];
@@ -1685,6 +1686,7 @@ function startBattle(key, region, roomIdx) {
   }
   // 敵ごとの弱点ヒントは自動表示しない——「ようすをみる」で観察したときに出る
   if (e.threat === 'breath') intro.push('体の奥が、赤く光りはじめている……');
+  if (e.gimmick === 'shell') intro.push(`${e.name}は殻を固く閉じている。`);
   showMsgs(intro, battleMenu);
 }
 function startFinale() {
@@ -1768,14 +1770,26 @@ function useDarkItem() {
   victory(); // 説明はない。ただ、敵が倒れる
 }
 
+// --- 敵ごとの型（ターンで切り替わる。乱数なし）---
+// 殻: 奇数ターンは閉じている——剣もじゅもんも討伐隊も、ほぼ通らない
+// 構え: 偶数ターンは大剣を構えている——手を出せば半分しか通らず、斬り返される。構え中は人質も襲わない
+const shellClosed = () => battle.e.gimmick === 'shell' && battle.turn % 2 === 1;
+const inStance = () => battle.e.gimmick === 'stance' && battle.turn % 2 === 0;
+function gimmickDmg(d, msgs) {
+  if (shellClosed()) { msgs.push('——固い殻に阻まれた！'); return Math.max(1, Math.round(d * 0.1)); }
+  if (inStance()) { msgs.push('——構えた大剣に受け流された！'); return Math.max(1, Math.round(d * 0.5)); }
+  return d;
+}
+
 // --- プレイヤー行動 ---
 function playerAttack() {
   battle.guarding = false;
   const s = stats(), e = battle.e;
-  let d = Math.max(1, Math.round(phys(s.atk, e.def) * physEff(e)));
+  const note = [];
+  let d = gimmickDmg(Math.max(1, Math.round(phys(s.atk, e.def) * physEff(e))), note);
   battle.hp = Math.max(0, battle.hp - d);
-  const msgs = [{ text: `勇者のこうげき！　${e.name}に ${d} のダメージ！`, fx: enemyHitFx(d, physEff(e) < 1 ? 'resist' : '', battle.hp, battle.maxHp) }];
-  if (physEff(e) < 1) msgs.push('——ほとんど効いていない！');
+  const msgs = [{ text: `勇者のこうげき！　${e.name}に ${d} のダメージ！`, fx: enemyHitFx(d, physEff(e) < 1 || note.length ? 'resist' : '', battle.hp, battle.maxHp) }];
+  if (note.length) msgs.push(...note); else if (physEff(e) < 1) msgs.push('——ほとんど効いていない！');
   if (e.counter && battle.hp > 0) {
     const cd = phys(e.atk, s.def);
     takeHit(cd); msgs.push({ text: `${e.name}の反撃！　勇者は ${cd} のダメージ！　力が削れた……`, fx: heroHitFx(cd) });
@@ -1802,8 +1816,9 @@ function castSpell(sp) {
     d = Math.max(1, Math.round(sp.power * s.matk * rand() * mult));
     if (mult >= 2) msgs.push('弱点を突いた！'); else if (mult < 1) msgs.push('効果はいまひとつだ……');
   }
+  const n0 = msgs.length; d = gimmickDmg(d, msgs);
   battle.hp = Math.max(0, battle.hp - d);
-  const tag = sp.kind === 'phys' ? (physEff(e) < 1 ? 'resist' : '') : (magMult(e, sp.kind) >= 2 ? 'weak' : (magMult(e, sp.kind) < 1 ? 'resist' : ''));
+  const tag = msgs.length > n0 ? 'resist' : sp.kind === 'phys' ? (physEff(e) < 1 ? 'resist' : '') : (magMult(e, sp.kind) >= 2 ? 'weak' : (magMult(e, sp.kind) < 1 ? 'resist' : ''));
   msgs.push({ text: `${e.name}に ${d} のダメージ！`, fx: enemyHitFx(d, tag, battle.hp, battle.maxHp) });
   if (sp.kind === 'phys' && e.counter && battle.hp > 0) {
     const cd = phys(e.atk, s.def); takeHit(cd); msgs.push({ text: `${e.name}の反撃！　勇者は ${cd} のダメージ！`, fx: heroHitFx(cd) });
@@ -1891,7 +1906,8 @@ function resolveTurn(msgs, drewAggro) {
   }
   // 討伐隊が敵を削る（兵士が気絶していると救護で動けない）
   if (!(battle.soldier && battle.soldier.down)) {
-    const sd = squadDps(e);
+    let sd = squadDps(e);
+    if (sd > 0 && shellClosed()) sd = Math.max(1, Math.round(sd * 0.1));
     if (sd > 0) {
       battle.hp = Math.max(0, battle.hp - sd);
       msgs.push({ text: `討伐隊の攻撃！　${e.name}に ${sd} のダメージ！`, fx: enemyHitFx(sd, '', battle.hp, battle.maxHp) });
@@ -1901,8 +1917,9 @@ function resolveTurn(msgs, drewAggro) {
     }
   }
 
-  // 人質への脅威
-  hostageThreat(msgs);
+  // 人質への脅威（構えている間は動かない）
+  if (inStance()) msgs.push(`${e.name}は大剣を構えたまま、動かない。`);
+  else hostageThreat(msgs);
   if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
   if (e.threat === 'breath' && battle.breathTimer === 1 && !battle.hostage.dead) {
     msgs.push({ text: `${e.name}の喉が赤熱している……次のターン、ブレスが人質を焼く！`,
@@ -1910,11 +1927,19 @@ function resolveTurn(msgs, drewAggro) {
   }
 
   // 敵の反撃（こちらが手を出した時のみ）
-  if (drewAggro) {
+  if (drewAggro && inStance()) {
+    // 構えに手を出した：渾身の斬り返し。力は2発分削れる
+    const s = stats(); const ed = phys(Math.round(e.atk * 1.5), s.def); takeHit(ed); takeHit(0);
+    msgs.push({ text: `${e.name}の斬り返し！　勇者は ${ed} のダメージ！　力が大きく削れた……`, fx: heroHitFx(ed) });
+    if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
+  } else if (drewAggro) {
     const s = stats(); const ed = phys(e.atk, s.def); takeHit(ed);
     msgs.push({ text: `${e.name}のこうげき！　勇者は ${ed} のダメージを受けた！`, fx: heroHitFx(ed) });
     if (G.hp <= 0) { showMsgs(msgs, defeat); return; }
   }
+  battle.turn++;
+  if (e.gimmick === 'stance' && inStance()) msgs.push(`${e.name}が大剣を低く構えた……`);
+  else if (e.gimmick === 'shell') msgs.push(shellClosed() ? `${e.name}は殻を固く閉じた。` : `${e.name}の殻が開いた！`);
   showMsgs(msgs, battleMenu);
 }
 
