@@ -528,7 +528,7 @@ function showTitle() {
       <div><h1>逆勇者</h1><div class="sub">〜魔王を倒してからが本番〜</div></div>
       <div class="spr" id="title-hero">${makeSprite('hero', 7)}</div>
       <div class="sub">敵は有限。すべて殲滅したら、物語は終わる。</div>
-      <div class="sub"><a href="guide.html" style="color:#7fd0ff;text-decoration:none">📖 逆勇者 完全攻略（ネタバレ全開）</a></div>
+      <div class="sub"><a href="guide.html" style="color:#7fd0ff;text-decoration:none">📖 逆勇者 完全攻略</a></div>
     </div>`;
   // 隠し: 勇者を7回たたくと、玉座の間で途切れた言葉の続きが聞ける
   let heroTaps = 0;
@@ -2433,6 +2433,7 @@ function showEnding() {
   if (G.choices.sparedReunion) lines.push('砦の跡では、魔物が育てた最初の麦が実ったそうだ。世界から魔物はいなくなった——そういうことにしておく。');
   else if (G.choices.spared) lines.push('見逃したあの魔物は、どこかで静かに生きているだろうか。');
   if (G.choices.acceptedOffer) lines.push('沼で背を向けた悲鳴は、もう夢にしか出てこない。');
+  if (G.choices.rested) lines.push('森の手前の村の、あの一晩の眠りの深さを、勇者はまだ覚えている。夜明けに上がった火の手のことも。');
   if (G.choices.soldSword) lines.push('英雄の剣は、もう手元にない。畑を耕す鍬の方が、今は手に馴染む。');
   if (G.choices.bride === 'bianna') lines.push('ビアンナとの家には、いまも口論が絶えないらしい。それでも食卓には、毎晩ふたり分の皿が並ぶ。');
   else if (G.choices.bride === 'floria') lines.push('フロリア商会は大きくなった。帳簿の「経費」の欄に、手切れ金と書かれた行がひとつだけある。');
