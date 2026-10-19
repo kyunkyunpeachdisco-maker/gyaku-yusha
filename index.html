@@ -8,6 +8,9 @@
 <meta name="theme-color" content="#000000">
 <link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 <meta property="og:title" content="逆勇者 〜魔王を倒してからが本番〜">
 <meta property="og:description" content="魔王を倒してからが本番のドット絵RPG">
 <meta property="og:type" content="website">
@@ -19,7 +22,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   body {
-    font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'MS Gothic', monospace;
+    font-family: 'DotGothic16', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'MS Gothic', monospace;
     background: #000; color: #f4f4f8; font-size: 16px;
     overscroll-behavior: none; user-select: none; -webkit-user-select: none; touch-action: manipulation;
   }
@@ -42,7 +45,19 @@
   .title-scene .sub { color: #b6b6d8; font-size: 15px; letter-spacing: 1px; padding: 0 14px; }
   .title-scene .spr { margin: 4px 0; }
   .battle-scene { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; }
-  .enemy-icon { line-height: 1; }
+  .enemy-icon { line-height: 1; animation: appear 0.5s ease-out; }
+  @keyframes appear { 0% { opacity: 0; transform: translateY(-12px) scale(0.92); } 100% { opacity: 1; transform: none; } }
+  /* 地域ごとの戦闘背景（奥の景色＋地面）。敵が沈まないよう暗めに抑える */
+  .battle-scene > * { position: relative; z-index: 1; }
+  .battle-scene::before, .battle-scene::after { content: ''; position: absolute; left: 0; right: 0; pointer-events: none; z-index: 0; }
+  .battle-scene::before { top: 0; bottom: 0; }
+  .battle-scene::after { bottom: 0; height: 100%; background: linear-gradient(to bottom, rgba(5,6,13,0) 40%, rgba(5,6,13,0.85) 100%); }
+  .bg-r0::before { background: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%20preserveAspectRatio%3D'none'%3E%3Cdefs%3E%3ClinearGradient%20id%3D's'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%230e0820'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%232c1a48'%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%233a3550'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%231c1a2a'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'62'%20fill%3D'url(%23s)'%2F%3E%3Ccircle%20cx%3D'12'%20cy%3D'8'%20r%3D'0.35'%20fill%3D'%23fff'%20fill-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'30'%20cy%3D'15'%20r%3D'0.25'%20fill%3D'%23fff'%20fill-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'55'%20cy%3D'6'%20r%3D'0.3'%20fill%3D'%23fff'%20fill-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'72'%20cy%3D'12'%20r%3D'0.35'%20fill%3D'%23fff'%20fill-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'88'%20cy%3D'5'%20r%3D'0.25'%20fill%3D'%23fff'%20fill-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'93'%20cy%3D'22'%20r%3D'0.3'%20fill%3D'%23fff'%20fill-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'6'%20cy%3D'26'%20r%3D'0.25'%20fill%3D'%23fff'%20fill-opacity%3D'.6'%2F%3E%3Ccircle%20cx%3D'44'%20cy%3D'24'%20r%3D'0.2'%20fill%3D'%23fff'%20fill-opacity%3D'.6'%2F%3E%3Cpath%20d%3D'M0%2062%20V40%20h6%20v-8%20l3%20-6%20l3%206%20v8%20h6%20v12%20h10%20V30%20l4%20-9%20l4%209%20v26%20h12%20V44%20h8%20V24%20l5%20-12%20l5%2012%20v20%20h8%20v12%20h10%20V34%20l3%20-7%20l3%207%20v28%20Z'%20fill%3D'%23140c22'%2F%3E%3Crect%20y%3D'62'%20width%3D'100'%20height%3D'38'%20fill%3D'url(%23g)'%2F%3E%3Crect%20y%3D'70'%20width%3D'100'%20height%3D'.4'%20fill%3D'%23000'%20fill-opacity%3D'.35'%2F%3E%3Crect%20y%3D'80'%20width%3D'100'%20height%3D'.4'%20fill%3D'%23000'%20fill-opacity%3D'.35'%2F%3E%3Crect%20y%3D'92'%20width%3D'100'%20height%3D'.4'%20fill%3D'%23000'%20fill-opacity%3D'.35'%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat; }
+  .bg-r1::before { background: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%20preserveAspectRatio%3D'none'%3E%3Cdefs%3E%3ClinearGradient%20id%3D's'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%231c1c3c'%2F%3E%3Cstop%20offset%3D'0.55'%20stop-color%3D'%236b3a4a'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%23c0704c'%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%233a2a22'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%231a1210'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'62'%20fill%3D'url(%23s)'%2F%3E%3Cpath%20d%3D'M0%2062%20L0%2038%20L14%2022%20L24%2032%20L38%2012%20L52%2030%20L62%2024%20L76%208%20L90%2026%20L100%2018%20L100%2062%20Z'%20fill%3D'%233a2a40'%2F%3E%3Cpath%20d%3D'M0%2062%20L0%2048%20L18%2036%20L30%2046%20L46%2032%20L60%2044%20L74%2034%20L88%2046%20L100%2040%20L100%2062%20Z'%20fill%3D'%23231a26'%2F%3E%3Crect%20y%3D'62'%20width%3D'100'%20height%3D'38'%20fill%3D'url(%23g)'%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat; }
+  .bg-r2::before { background: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%20preserveAspectRatio%3D'none'%3E%3Cdefs%3E%3ClinearGradient%20id%3D's'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%230d111c'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%23283041'%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%2334353e'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%2318191f'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'62'%20fill%3D'url(%23s)'%2F%3E%3Cpath%20d%3D'M0%2062%20V30%20h5%20v-5%20h5%20v5%20h5%20v-5%20h5%20v5%20h5%20v-5%20h5%20v5%20h5%20v-5%20h5%20v5%20h5%20v-5%20h5%20v5%20h5%20v-5%20h5%20v5%20h5%20v-5%20h5%20v5%20h5%20v-5%20h5%20v5%20h5%20v-5%20h5%20v5%20h5%20v-5%20h5%20v5%20V62%20Z'%20fill%3D'%231d2330'%2F%3E%3Crect%20x%3D'8'%20y%3D'38'%20width%3D'2.4'%20height%3D'7'%20fill%3D'%230b0e16'%2F%3E%3Crect%20x%3D'25'%20y%3D'38'%20width%3D'2.4'%20height%3D'7'%20fill%3D'%230b0e16'%2F%3E%3Crect%20x%3D'42'%20y%3D'38'%20width%3D'2.4'%20height%3D'7'%20fill%3D'%230b0e16'%2F%3E%3Crect%20x%3D'59'%20y%3D'38'%20width%3D'2.4'%20height%3D'7'%20fill%3D'%230b0e16'%2F%3E%3Crect%20x%3D'76'%20y%3D'38'%20width%3D'2.4'%20height%3D'7'%20fill%3D'%230b0e16'%2F%3E%3Crect%20x%3D'93'%20y%3D'38'%20width%3D'2.4'%20height%3D'7'%20fill%3D'%230b0e16'%2F%3E%3Crect%20y%3D'62'%20width%3D'100'%20height%3D'38'%20fill%3D'url(%23g)'%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat; }
+  .bg-r3::before { background: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%20preserveAspectRatio%3D'none'%3E%3Cdefs%3E%3ClinearGradient%20id%3D's'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%230a1410'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%2322362c'%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%231e2a20'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%230e140e'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'62'%20fill%3D'url(%23s)'%2F%3E%3Cpath%20d%3D'M12%2062%20V30%20l-5%20-6%20M12%2036%20l6%20-8%20M12%2030%20l-2%20-10'%20stroke%3D'%230a120e'%20stroke-width%3D'1.6'%20fill%3D'none'%2F%3E%3Cpath%20d%3D'M84%2062%20V26%20l5%20-7%20M84%2034%20l-6%20-6%20M84%2028%20l3%20-9'%20stroke%3D'%230a120e'%20stroke-width%3D'1.6'%20fill%3D'none'%2F%3E%3Crect%20y%3D'62'%20width%3D'100'%20height%3D'38'%20fill%3D'url(%23g)'%2F%3E%3Cellipse%20cx%3D'30'%20cy%3D'60'%20rx%3D'34'%20ry%3D'5'%20fill%3D'%23a8c0b0'%20fill-opacity%3D'.18'%2F%3E%3Cellipse%20cx%3D'74'%20cy%3D'68'%20rx%3D'30'%20ry%3D'4'%20fill%3D'%23a8c0b0'%20fill-opacity%3D'.14'%2F%3E%3Crect%20x%3D'10'%20y%3D'72'%20width%3D'30'%20height%3D'.5'%20fill%3D'%239fb8a8'%20fill-opacity%3D'.18'%2F%3E%3Crect%20x%3D'32'%20y%3D'80'%20width%3D'24'%20height%3D'.5'%20fill%3D'%239fb8a8'%20fill-opacity%3D'.18'%2F%3E%3Crect%20x%3D'54'%20y%3D'90'%20width%3D'18'%20height%3D'.5'%20fill%3D'%239fb8a8'%20fill-opacity%3D'.18'%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat; }
+  .bg-r4::before { background: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%20preserveAspectRatio%3D'none'%3E%3Cdefs%3E%3ClinearGradient%20id%3D's'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%230a160c'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%231c3420'%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%231e2c16'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%230e140a'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'62'%20fill%3D'url(%23s)'%2F%3E%3Crect%20x%3D'4'%20y%3D'0'%20width%3D'7'%20height%3D'62'%20fill%3D'%230b160c'%2F%3E%3Crect%20x%3D'20'%20y%3D'0'%20width%3D'5'%20height%3D'62'%20fill%3D'%230b160c'%2F%3E%3Crect%20x%3D'36'%20y%3D'0'%20width%3D'8'%20height%3D'62'%20fill%3D'%230b160c'%2F%3E%3Crect%20x%3D'62'%20y%3D'0'%20width%3D'6'%20height%3D'62'%20fill%3D'%230b160c'%2F%3E%3Crect%20x%3D'80'%20y%3D'0'%20width%3D'8'%20height%3D'62'%20fill%3D'%230b160c'%2F%3E%3Crect%20x%3D'94'%20y%3D'0'%20width%3D'5'%20height%3D'62'%20fill%3D'%230b160c'%2F%3E%3Cpath%20d%3D'M0%200%20H100%20V14%20Q88%2022%2076%2014%20Q64%2024%2050%2014%20Q36%2024%2024%2014%20Q12%2022%200%2014%20Z'%20fill%3D'%230e2210'%2F%3E%3Crect%20y%3D'62'%20width%3D'100'%20height%3D'38'%20fill%3D'url(%23g)'%2F%3E%3Cpath%20d%3D'M0%2062%20q4%20-4%208%200%20q4%20-5%209%200%20q5%20-4%2010%200%20q4%20-5%209%200%20q5%20-4%2010%200%20q4%20-5%209%200%20q5%20-4%2010%200%20q4%20-5%209%200%20q5%20-4%2010%200%20q4%20-5%208%200%20Z'%20fill%3D'%2316301a'%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat; }
+  .bg-finale::before { background: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%20preserveAspectRatio%3D'none'%3E%3Cdefs%3E%3ClinearGradient%20id%3D's'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%232a2448'%2F%3E%3Cstop%20offset%3D'0.6'%20stop-color%3D'%238a4a5a'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%23e0965a'%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%233a4a26'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%231a2412'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'62'%20fill%3D'url(%23s)'%2F%3E%3Ccircle%20cx%3D'70'%20cy%3D'58'%20r%3D'9'%20fill%3D'%23ffcc80'%20fill-opacity%3D'.8'%2F%3E%3Cpath%20d%3D'M0%2062%20V50%20h10%20l6%20-7%20l6%207%20h4%20V46%20l7%20-8%20l7%208%20h10%20V52%20h8%20l6%20-6%20l6%206%20h12%20V44%20l6%20-7%20l6%207%20h6%20V62%20Z'%20fill%3D'%232a1e24'%2F%3E%3Crect%20x%3D'15'%20y%3D'52'%20width%3D'2'%20height%3D'2'%20fill%3D'%23ffd27a'%2F%3E%3Crect%20x%3D'36'%20y%3D'48'%20width%3D'2'%20height%3D'2'%20fill%3D'%23ffd27a'%2F%3E%3Crect%20x%3D'88'%20y%3D'48'%20width%3D'2'%20height%3D'2'%20fill%3D'%23ffd27a'%2F%3E%3Crect%20y%3D'62'%20width%3D'100'%20height%3D'38'%20fill%3D'url(%23g)'%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat; }
   .enemy-icon.shake { animation: shake 0.3s; }
   .enemy-icon.dead { opacity: 0; transform: translateY(8px); transition: opacity 0.55s, transform 0.55s; }
   .enemy-icon .sprite { animation: idle 2.4s ease-in-out infinite; }
@@ -220,20 +235,42 @@ const DECOR = {
   4: { pillar: 'bush',   items: ['bush', 'rock', 'bush', 'chest_open', 'bush'] },
 };
 const _sprCache = {};
+// 縁取り＋陰影を付けるのはキャラクターだけ
+const SHADED = new Set(['slime','wolf','deathknight','dragon','durahan','demonking','golem','wraith','icedrake','scorpion','mandragora','harpy','hero','citizen','soldier','orochi','snakehead']);
+function shadeHex(hex, k) { // k>0で明るく、k<0で暗く
+  const n = parseInt(hex.slice(1, 7), 16), ch = [n >> 16, (n >> 8) & 255, n & 255];
+  const v = ch.map((c) => Math.max(0, Math.min(255, Math.round(k >= 0 ? c + (255 - c) * k : c * (1 + k)))));
+  return '#' + v.map((c) => c.toString(16).padStart(2, '0')).join('');
+}
 function makeSprite(key, px) {
   const ck = key + '@' + px;
   if (_sprCache[ck]) return _sprCache[ck];
   const sp = SPRITES[key];
   if (!sp) return '';
   const rows = sp.rows, pal = sp.pal;
-  const w = Math.max.apply(null, rows.map((r) => r.length)), h = rows.length;
+  const shaded = SHADED.has(key), o = shaded ? 1 : 0; // 縁取りの分だけ1マス広げる
+  const w0 = Math.max.apply(null, rows.map((r) => r.length)), h0 = rows.length;
+  const w = w0 + o * 2, h = h0 + o * 2;
+  const at = (x, y) => (y >= 0 && y < h0 && x >= 0 && x < (rows[y] || '').length ? pal[rows[y][x]] : undefined);
   let rects = '';
-  for (let y = 0; y < h; y++) {
+  if (shaded) {
+    for (let y = -1; y <= h0; y++) for (let x = -1; x <= w0; x++) {
+      if (at(x, y)) continue;
+      if (at(x - 1, y) || at(x + 1, y) || at(x, y - 1) || at(x, y + 1))
+        rects += `<rect x="${x + o}" y="${y + o}" width="1.02" height="1.02" fill="#07070f"/>`;
+    }
+  }
+  for (let y = 0; y < h0; y++) {
     const row = rows[y];
     for (let x = 0; x < row.length; x++) {
-      const col = pal[row[x]];
+      let col = pal[row[x]];
       if (!col) continue;
-      rects += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${col}"/>`;
+      if (shaded && col.length >= 7) {
+        if (!at(x, y + 1)) col = shadeHex(col, -0.3);        // 下側の縁は影
+        else if (!at(x, y - 1)) col = shadeHex(col, 0.22);   // 上側の縁はハイライト
+        else if (!at(x + 1, y)) col = shadeHex(col, -0.15);  // 右側の縁は少し暗く
+      }
+      rects += `<rect x="${x + o}" y="${y + o}" width="1.02" height="1.02" fill="${col}"/>`;
     }
   }
   const svg = `<svg class="sprite" viewBox="0 0 ${w} ${h}" width="${w * px}" height="${h * px}" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
@@ -291,7 +328,7 @@ const ENEMIES = {
 // 最終戦。スライムは弱い魔物のまま——大きく見えるのは、勇者が削れ切ったときだけ。
 // スライムの壁=Lv5以下: 回復を捨てて殴り合っても、やくそうを満載しても勝てない。受け皿はくろい心臓。
 // 壁の高さはこのatkで調整する(atk52→壁Lv5 / 48→Lv4 / 68→Lv10級)。フレイ忘却Lv20/リカバ忘却Lv15(SPELLS)とセット
-const FINALE = { name:'さいごのスライム', sprite:'slime', hp:60, atk:52, def:5, kind:'squad' };
+const FINALE = { name:'スライム', sprite:'slime', hp:60, atk:52, def:5, kind:'squad' };
 
 // ===== 地域（有限の出撃順）＋イベント =====
 const REGIONS = [
@@ -491,7 +528,7 @@ function showTitle() {
       <div><h1>逆勇者</h1><div class="sub">〜魔王を倒してからが本番〜</div></div>
       <div class="spr" id="title-hero">${makeSprite('hero', 7)}</div>
       <div class="sub">敵は有限。すべて殲滅したら、物語は終わる。</div>
-      <div class="sub"><a href="guide.html" style="color:#7fd0ff;text-decoration:none">📖 かんぜん攻略本（ネタバレ全開）</a></div>
+      <div class="sub"><a href="guide.html" style="color:#7fd0ff;text-decoration:none">📖 逆勇者 完全攻略（ネタバレ全開）</a></div>
     </div>`;
   // 隠し: 勇者を7回たたくと、玉座の間で途切れた言葉の続きが聞ける
   let heroTaps = 0;
@@ -1717,7 +1754,8 @@ function renderBattle(e, isFinale) {
         <div class="u-state" id="a-state">突撃中！</div></div>
     </div>`;
   }
-  stage.innerHTML = `<div class="battle-scene">
+  const bg = isFinale ? 'bg-finale' : `bg-r${battle.region}`;
+  stage.innerHTML = `<div class="battle-scene ${bg}">
       <div class="enemy-icon" id="e-icon"><div class="spr" id="e-spr">${makeSprite(e.sprite, px)}</div></div>
       <div class="enemy-shadow"></div>
       <div class="enemy-name">${e.name}</div>
