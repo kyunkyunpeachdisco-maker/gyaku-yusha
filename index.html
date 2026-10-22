@@ -1612,7 +1612,7 @@ function visitCasino() {
 function showCasino() {
   renderHud(); save();
   stage.innerHTML = `<div class="map-scene"><h2>🎰 娯楽場「実力堂」</h2>
-    <div class="map-sub">サイコロも、スロットもない。<br>運の要素がひとつもない、腕だけの卓が3つ。<br>挑戦料 ${CASINO_FEE}G。景品は各卓、初勝利のみ。<br>（魔像の卓は<b>最少手クリア</b>だけが景品対象）</div></div>`;
+    <div class="map-sub">サイコロも、スロットもない。<br>腕で勝負する卓が3つ。<br>挑戦料 ${CASINO_FEE}G。景品は各卓、初勝利のみ。<br>（魔像の卓は<b>最少手クリア</b>だけが景品対象）</div></div>`;
   const start = (type, ri, init) => () => {
     G.gold -= CASINO_FEE; renderHud(); save();
     PZ = { type, ri, venue: 'casino' };
