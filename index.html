@@ -450,9 +450,55 @@ const dropPrice = () => Math.round(DROP_BASE_PRICE * Math.pow(2, G.dropBought) *
 const spellAvailable = (sp) => lvOf() >= sp.minLv;
 
 // ===== セーブ =====
-function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) {} }
+function save() { if (G && G.gallery) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) {} } // パズルの遊び場では保存しない
+const CLEARED_KEY = 'gyaku-rpg-cleared'; // 最後のスライムに一度でも勝ったか(エンディングの種類は問わない)
+function everCleared() { try { return localStorage.getItem(CLEARED_KEY) === '1'; } catch (e) { return false; } }
+function markCleared() { try { localStorage.setItem(CLEARED_KEY, '1'); } catch (e) {} }
 function load() { try { return JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { return null; } }
 function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+// 手動セーブ(きろく)。自動セーブとは別に3枠。世界地図でだけ記録でき、タイトルから再開する
+const SLOT_COUNT = 3;
+const slotKey = (n) => 'gyaku-rpg-slot-' + n;
+function readSlot(n) { try { return JSON.parse(localStorage.getItem(slotKey(n))); } catch (e) { return null; } }
+function writeSlot(n) {
+  const where = G.descended ? (REGIONS[curRegion()] ? REGIONS[curRegion()].name + 'の手前' : '故郷の手前') : '魔王城';
+  const rec = { at: Date.now(), where, lv: lvOf(), saved: G.saved, data: G };
+  try { localStorage.setItem(slotKey(n), JSON.stringify(rec)); return true; } catch (e) { return false; }
+}
+function slotLabel(n, rec) {
+  if (!rec) return `きろく${n}：（空き）`;
+  const d = new Date(rec.at), pad = (v) => String(v).padStart(2, '0');
+  return `きろく${n}：${rec.where} Lv${rec.lv} 救出${rec.saved}人（${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}）`;
+}
+function anySlot() { for (let n = 1; n <= SLOT_COUNT; n++) if (readSlot(n)) return true; return false; }
+function showSaveSlots() {
+  const list = [];
+  for (let n = 1; n <= SLOT_COUNT; n++) {
+    const rec = readSlot(n);
+    list.push({ label: slotLabel(n, rec), wide: true, fn: () => {
+      const doSave = () => showMsgs([writeSlot(n) ? `きろく${n}に書きこんだ。` : 'きろくに失敗した。（ブラウザの保存領域が使えないようだ）'], renderScene);
+      if (!rec) return doSave();
+      showChoice([`きろく${n}には、すでに記録があります。`, '上書きしますか？'], [
+        { label: '上書きする', fn: doSave },
+        { label: 'やめる', fn: showSaveSlots },
+      ]);
+    } });
+  }
+  list.push({ label: '← もどる', wide: true, fn: renderScene });
+  setCmds(list, true);
+}
+function showLoadSlots() {
+  const list = [];
+  for (let n = 1; n <= SLOT_COUNT; n++) {
+    const rec = readSlot(n);
+    list.push({ label: slotLabel(n, rec), wide: true, disabled: !rec, fn: () => {
+      G = Object.assign(newGame(), rec.data); save(); // 再開した時点で自動セーブもその状態になる
+      renderHud(); renderScene();
+    } });
+  }
+  list.push({ label: '← もどる', wide: true, fn: showTitle });
+  setCmds(list, true);
+}
 
 // ===== DOM =====
 const $ = (id) => document.getElementById(id);
@@ -552,6 +598,34 @@ function showTitle() {
     ]);
   } }];
   if (saved) list.push({ label: 'つづきから', fn: () => { G = Object.assign(newGame(), saved); renderHud(); renderScene(); } });
+  if (anySlot()) list.push({ label: '📝 きろくから再開', wide: true, fn: showLoadSlots });
+  if (everCleared()) list.push({ label: '🧩 パズル', wide: true, fn: showGallery });
+  setCmds(list, true);
+}
+
+// ===== パズルの遊び場(クリア後のおまけ。景品なし・セーブなし) =====
+const GALLERY = [
+  ['lights', '🏯 消えずの篝火'], ['nonogram', '🏯 風化した壁画'],
+  ['sokoban', '🐲 鉄箱の倉'], ['akari', '🐲 暗闇の間'],
+  ['nim', '🏰 残党の大蛇'], ['liar', '🏰 門番の問答'], ['zebra', '🏰 討伐隊の進軍録'],
+  ['numberlink', '🌫 数つなぎ'], ['ulam', '🌫 化けた残党'],
+  ['sphinx', '🌲 スフィンクスの匣'],
+  ['hex', '🎰 対戦ヘックス'], ['mastermind', '🎰 数当ての卓'], ['ricochet', '🎰 滑る魔像の卓'],
+];
+const CASINO_RI = { hex: 0, mastermind: 9, ricochet: 9 }; // 実力堂の卓と同じ盤面にする
+function galleryRegion(type) {
+  if (type in CASINO_RI) return CASINO_RI[type];
+  for (const tbl of [PUZZLE_OF, PUZZLE2_OF, PUZZLE3_OF]) { const i = tbl.indexOf(type); if (i >= 0) return i; }
+  return 0;
+}
+function showGallery() {
+  G = Object.assign(newGame(), { gallery: true }); PZ = null;
+  hud.style.display = 'none'; msgwin.style.display = 'none';
+  stage.innerHTML = `<div class="title-scene" style="gap:12px">
+    <div class="sub" style="font-size:20px;color:#ffd23b">🧩 パズル</div>
+    <div class="sub">本編と同じ盤面を、何度でも遊べます。<br>景品はありません。</div></div>`;
+  const list = GALLERY.map(([type, label]) => ({ label, fn: () => startPuzzle(type, galleryRegion(type), 'gallery') }));
+  list.push({ label: '↩ タイトルへ', wide: true, fn: () => { G = null; PZ = null; showTitle(); } });
   setCmds(list, true);
 }
 
@@ -814,9 +888,10 @@ const PUZZLE_NAME = { nim: '大蛇', lights: '消えずの篝火', sokoban: '鉄
 // パズル報酬：herb=やくそう／drop=魔力の雫／wear=摩耗回復（一度きりのダンジョンパズル限定。繰り返し遊べるカジノには置かない）
 const PUZZLE_REWARD = { lights: 'herb', sokoban: 'herb', mastermind: 'drop', sphinx: 'drop', ricochet: 'herb', hex: 'drop', liar: 'herb', numberlink: 'herb', nonogram: 'drop', akari: 'herb', zebra: 'wear', ulam: 'wear' };
 let PZ = null;
-function startPuzzle(type, ri) {
+function startPuzzle(type, ri, venue) {
+  if (type === 'nim' && venue === 'gallery') { PZ = { type, ri, venue, piles: [3, 4, 5] }; return orochiRender(''); }
   if (type === 'nim') return orochiIntro(ri); // ニムは大蛇退治イベント
-  PZ = { type, ri };
+  PZ = { type, ri, venue };
   if (type === 'lights') lightsInit();
   else if (type === 'sokoban') sokoInit();
   else if (type === 'sphinx') bbInit();
@@ -842,8 +917,9 @@ function puzzleFrame(title, body, controls, sub, onSwipe) {
   if (onSwipe) attachSwipe(body, onSwipe);
   setCmds(controls || [{ label: '↩ あきらめる', wide: true, fn: puzzleQuit }], true);
 }
-function puzzleQuit() { const casino = PZ && PZ.venue === 'casino'; PZ = null; casino ? showCasino() : renderDungeon(); }
+function puzzleQuit() { const venue = PZ && PZ.venue; PZ = null; venue === 'gallery' ? showGallery() : venue === 'casino' ? showCasino() : renderDungeon(); }
 function puzzleSolved(extraMsgs) {
+  if (PZ && PZ.venue === 'gallery') { PZ = null; return showMsgs(['🎉 解けた！'], showGallery); }
   if (PZ && PZ.venue === 'casino') return casinoWinFlow();
   const kind = PUZZLE_REWARD[PZ.type] || 'herb';
   G.puzzleSolved[PZ.type] = true; PZ = null;
@@ -879,7 +955,7 @@ function orochiRender(msg) {
     for (let j = 0; j < p; j++) { const c = mkCell(); c.innerHTML = decorOv('snakehead'); c.className += ' tap'; const take = p - j; c.onclick = () => orochiCut(i, take); row.appendChild(c); }
     body.appendChild(row);
   });
-  puzzleFrame('残党の大蛇 — 頭脳戦', body, [], (msg ? msg + '<br>' : '') + '首をタップ＝その首から先の節をまとめて斬る。<b>最後の一節を落とした方が勝ち</b>。（退けない）');
+  puzzleFrame('残党の大蛇 — 頭脳戦', body, PZ.venue === 'gallery' ? undefined : [], (msg ? msg + '<br>' : '') + '首をタップ＝その首から先の節をまとめて斬る。<b>最後の一節を落とした方が勝ち</b>。（退けない）');
 }
 function nimOver() { return PZ.piles.every((p) => p === 0); }
 function orochiCut(i, n) {
@@ -892,6 +968,7 @@ function orochiCut(i, n) {
   orochiRender('頭目の合図で、大蛇が自らの首を喰い切った。あなたの番。');
 }
 function orochiWin() {
+  if (PZ.venue === 'gallery') { PZ = null; return showMsgs(['最後の首が地に落ちた。🎉 勝ち！'], showGallery); }
   const before = lvOf(); G.puzzleSolved[PZ.type] = true; PZ = null;
   G.wear = Math.max(0, G.wear - 4); G.herbs += 1;
   const after = lvOf(); renderHud(); save();
@@ -902,6 +979,7 @@ function orochiWin() {
   ], () => renderDungeon());
 }
 function orochiLose() {
+  if (PZ.venue === 'gallery') { PZ = null; return showMsgs(['最後の首を喰い切ったのは、大蛇のほうだった。負け……'], showGallery); }
   const before = lvOf(); G.puzzleSolved[PZ.type] = true; PZ = null;
   G.wear += 4;
   const s = stats(); G.hp = Math.min(G.hp, s.maxHp);
@@ -943,7 +1021,7 @@ function bbTrace(atoms, sx, sy) {
 }
 function bbSig(atoms) { const m = {}; bbPorts().forEach((p) => { m[p[0] + ',' + p[1]] = bbTrace(atoms, p[0], p[1]); }); return m; }
 function bbInit() {
-  PZ = { type: 'sphinx', ri: PZ ? PZ.ri : G.dungeonRegion };
+  PZ = { type: 'sphinx', ri: PZ ? PZ.ri : G.dungeonRegion, venue: PZ ? PZ.venue : undefined };
   const rng = mulberry32(PZ.ri * 1777 + 29);
   const secret = new Set();
   while (secret.size < 3) { const x = Math.floor(rng() * BB_N), y = Math.floor(rng() * BB_N); secret.add(x + ',' + y); }
@@ -1561,7 +1639,8 @@ function mapMenu(inDungeon, ctx) {
   } });
   if (!inDungeon) list.push({ label: '💰 行商人', fn: visitMerchant });
   if (!inDungeon && G.descended) list.push({ label: '🎰 実力堂', fn: visitCasino });
-  list.push({ label: '🛡 そうび／仲間', wide: true, fn: showStatus });
+  list.push({ label: '🛡 そうび／仲間', wide: inDungeon, fn: showStatus });
+  if (!inDungeon) list.push({ label: '📝 きろく', fn: showSaveSlots });
   setCmds(list, true);
 }
 function showStatus() {
@@ -2063,7 +2142,7 @@ function victory() {
     setEnemyHpBarTo(0, 1);
   } }];
   if (battle.isFinale) {
-    G.finaleDone = true; battle = null;
+    G.finaleDone = true; battle = null; markCleared();
     if (G.choices.corrupted) {
       // ここまでは同じ。その後、ゲームが訊いてこないはずのことを訊いてくる
       showMsgs(msgs, () => showChoice(['本当にクリアしますか？'], [
