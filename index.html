@@ -935,6 +935,9 @@ function renderDungeon() {
   if (enemyHere) ctx = { fight: { key: reg.list[idx], idx } };
   else if (onPuzzle && !pzDone) ctx = { puzzle: here.type };
   else if (isExit && done) ctx = { descend: true };
+  // 最後の残党を倒した直後に一度だけ、出口の鉄格子が外れたことを知らせる
+  G.gateOpened = G.gateOpened || {};
+  if (done && !G.gateOpened[ri]) { G.gateOpened[ri] = true; save(); return showMsgs(['どこかで、鉄格子が外れる音がした。'], renderDungeon); }
   mapMenu(true, ctx);
 }
 function moveRoom(dir) {
