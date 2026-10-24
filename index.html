@@ -691,7 +691,7 @@ function showOpening() {
         'ここまでの道中、勇者は魔王だけを目指して、途中の魔物には目もくれずに駆け抜けてきた。',
         '取りこぼした残党は、故郷へ続く道のあちこちで、人里を盾にして居座っている。',
         'まずはこの天空の魔王城の残党を片づけて、飛行艇で地上へ降りる。そこから故郷まで、一区画ずつ取り返していくことになる。',
-        '人間の側でも、残党討伐隊が動き出していた。彼らは人質がいても構わずに魔物を焼く。',
+        '人間の側でも残党討伐隊が動き出していたが、彼らは人質がいてもお構いなしに矢を放つ。',
         'それに、魔王を前に張りつめていたものが、ふっと緩んでいく。今になって、体の節々が痛みはじめていた。',
         '物語はここから、終わりに向かって始まる。',
       ], () => { G.opened = true; renderHud(); save(); startJourney(); });
@@ -727,6 +727,8 @@ function spriteOv(key) { return `<div class="ov">${makeSprite(key, 1.5)}</div>`;
 function decorOv(key) { const sp = SPRITES[key]; const w = Math.max.apply(null, sp.rows.map((r) => r.length)), h = sp.rows.length; return `<div class="ov">${makeSprite(key, Math.max(1, Math.round(24 / Math.max(w, h))))}</div>`; }
 
 function renderWorld() {
+  // 魔王城のクリア後のイベント(飛行艇)を終えたら、地上に降りている
+  if (!G.descended && G.firedClear.includes(0)) { G.descended = true; G.heroX = GROUND_START.x; G.heroY = GROUND_START.y; }
   renderHud(); save();
   stage.innerHTML = '';
   const wrap = document.createElement('div'); wrap.className = 'mapwrap';
@@ -768,10 +770,15 @@ function renderWorld() {
   view.scrollLeft = G.heroX * 32 + 16 - view.clientWidth / 2;
   view.scrollTop = G.heroY * 32 + 16 - view.clientHeight / 2;
   mapMenu(false);
+  // 殲滅した地域のクリア後のイベントは、世界地図の上で起きる
+  const pend = G.limbo ? -1 : REGIONS.findIndex((r, i) => regionCleared(i) && !G.firedClear.includes(i));
+  if (pend >= 0) { G.firedClear.push(pend); worldEvent = true; runEvents(REGIONS[pend].onClear, () => { worldEvent = false; renderWorld(); }); }
 }
+let worldEvent = false; // 地図の上でイベント中は、地図のタップを受け付けない(選択肢が消えないように)
 // 行き先をタップするとそこへ移動し、立っている場所をもう一度タップすると中に入る。
 // まだ行けない場所は、移動せずに理由だけ出す
 function travelTo(x, y) {
+  if (worldEvent) return;
   const here = x === G.heroX && y === G.heroY, ri = regionAt(x, y);
   if (ri !== null) {
     const can = G.limbo || regionCleared(ri) || (regionUnlocked(ri) && (ri === 0 || G.descended));
@@ -807,8 +814,7 @@ function enterRegionAfterEvents(ri) { if (regionCleared(ri)) backToWorld(ri); el
 function showDungeon(ri) { G.view = 'dungeon'; G.dungeonRegion = ri; const m = REGIONS[ri]._maze; G.dx = m.ent[0]; G.dy = m.ent[1]; renderDungeon(); }
 function backToWorld(ri) {
   G.view = 'world'; G.dungeonRegion = -1;
-  if (ri === 0 && !G.descended) { G.descended = true; G.heroX = GROUND_START.x; G.heroY = GROUND_START.y; }
-  else { G.heroX = LOC[ri].x; G.heroY = LOC[ri].y; }
+  G.heroX = LOC[ri].x; G.heroY = LOC[ri].y;
   renderWorld();
 }
 function tryFinale() {
@@ -949,11 +955,7 @@ function moveRoom(dir) {
   G.dx += d[0] * 2; G.dy += d[1] * 2;
   renderDungeon();
 }
-function descendStairs() {
-  const ri = G.dungeonRegion;
-  if (!G.firedClear.includes(ri)) { G.firedClear.push(ri); return runEvents(REGIONS[ri].onClear, () => backToWorld(ri)); }
-  backToWorld(ri);
-}
+function descendStairs() { backToWorld(G.dungeonRegion); } // クリア後のイベントは世界地図に戻ってから起きる
 let _swipe = null;
 function attachSwipe(el, onDir) {
   const start = (x, y) => { _swipe = { x, y }; };
@@ -2349,7 +2351,7 @@ function showFinaleGate() {
     return;
   }
   stage.innerHTML = `<div class="map-scene"><h2>🏡 故郷の村へ</h2>
-    <div class="map-sub">残る魔物は、あと1体。ただのスライムだ——いや、「ただのスライム」に、今のお前は勝てるのか。</div></div>`;
+    <div class="map-sub">残る魔物は、あと1体。ただのスライムだ。</div></div>`;
   setCmds([
     { label: '⚔️ 最後の戦いへ', primary: true, wide: true, fn: startFinale },
     { label: '↩ 引き返す', wide: true, fn: renderWorld },
@@ -2613,7 +2615,7 @@ function showEnding() {
   let lines = [];
   // 強さの帰結（残った力についてのみ語る）
   if (s.lv >= 70) lines.push('英雄の力は、ほとんど残っていた。その剣はまだ千の魔物を斬れる——だが、斬るべき魔物はもういない。');
-  else if (s.lv >= 30) lines.push(`勇者はLv${s.lv}まで衰えた。失った力の分だけ、誰かの明日が残った。`);
+  else if (s.lv >= 30) lines.push(`勇者はLv${s.lv}まで衰えた。英雄の力の半分ほどは、戦いの中に置いてきた。`);
   else lines.push(`勇者はLv${s.lv}——もう、どこにでもいる若者だった。英雄の力は、戦いの中にすべて置いてきた。`);
   // 人質の帰結
   if (lost === 0 && saved > 0) lines.push(`守り抜いた市民：${saved}人。誰一人、犠牲にしなかった。`);
@@ -2666,6 +2668,7 @@ const JUMON_PUZZLES = ['lights', 'nonogram', 'sokoban', 'akari', 'nim', 'liar', 
 const JUMON_FLAGS = ['spared', 'sparedReunion', 'slimeReunion', 'casinoDoll', 'sunspot', 'soldSword', 'rested', 'merchantGift', 'limboThrone', 'corrupted', 'casinoSeen', 'acceptedOffer', 'executed'];
 const JUMON_SPELLS = ['yusha', 'raiga', 'frei', 'recover'];
 const JUMON_LEN = 28;
+const JUMON_PUZZLE = 'なぞときだけあそばせてください'; // 進行状態は変えず、タイトルの「パズル」だけを開放する
 const enumOf = (list, v) => Math.max(0, list.indexOf(v));
 // [項目, ビット数, 状態→数, 数→状態]
 const JUMON_FIELDS = [
@@ -2736,6 +2739,10 @@ function showJumon(prefill) {
   const clearHash = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} };
   setCmds([
     { label: 'このじゅもんで はじめる', primary: true, wide: true, fn: () => {
+      if ($('jumon-in').value.replace(/[\s　]/g, '') === JUMON_PUZZLE) {
+        clearHash(); markCleared();
+        return showMsgs(['パズルの間が ひらかれた。', 'タイトルの「パズル」から 遊べます。'], showTitle);
+      }
       const g = jumonDecode($('jumon-in').value);
       if (!g) { $('jumon-msg').textContent = 'じゅもんが ちがいます'; return; }
       const begin = () => { clearHash(); G = g; placeHeroAtLastVisit(); save(); if (G.finaleDone) markCleared(); renderHud(); renderScene(); };
