@@ -222,7 +222,23 @@ const SPRITES = {
   "orochi": { "pal": {"G":"#3f9b54","D":"#1f4a2b","Y":"#ffe24a","R":"#ff4d4d","W":"#ffffff","B":"#7fd98f"},
     "rows": [".G..GG..GG..G.","GGGGGGGGGGGGGG","GYYGGGYYGGGYYG","GGGGGGGGGGGGGG","GRRGGGGGGGGRRG",".RWR.GGGG.RWR.","GGGGGGGGGGGGGG",".GGGGGGGGGGGG.","..GGGBBBBGGG..","...GGBBBBGG...","..GGGGGGGGGG..",".GGG.GGGG.GGG.","GGG...GG...GGG","GG.........GG."] },
   "snakehead": { "pal": {"G":"#3f9b54","Y":"#ffe24a","R":"#ff4d4d"},
-    "rows": ["..GGGGGG..",".GGGGGGGG.","GGYGGGGYGG","GGGGGGGGGG","GGGRRRRGGG",".GG.RR.GG.","..G.RR.G..","...GGGG..."] }
+    "rows": ["..GGGGGG..",".GGGGGGGG.","GGYGGGGYGG","GGGGGGGGGG","GGGRRRRGGG",".GG.RR.GG.","..G.RR.G..","...GGGG..."] },
+  "torch_off": { "pal": {"1":"#5a3a1a","2":"#2e1d0c","K":"#26262a","G":"#4a4a50"},
+    "rows": ["........","........","...KK...","..KGGK..","..KGGK..","...KK...","...11...","...11...","..2112..","...22..."] },
+  "stairs": { "pal": {"1":"#6a6a7a","2":"#8a8a9a","3":"#b0b0c0","4":"#3a3a48","K":"#0a0a12"},
+    "rows": ["4444444444","4333333334","43KKKKKK34","4322222234","432KKKK234","4321111234","4321KK1234","4321KK1234","4321KK1234","4444444444"] },
+  "door": { "pal": {"1":"#8a5a2a","2":"#5a3a18","3":"#4a4a58","K":"#2a2a2e","Y":"#ffd23b"},
+    "rows": ["..333333..",".31111113.","3112112113","3112112113","3112112113","3KKKKKKKK3","3112112113","31121121Y3","3112112113","3333333333"] },
+  "house": { "pal": {"R":"#b8443a","W":"#e8d8b0","Y":"#ffe08a","D":"#6a4020","K":"#3a2a20"},
+    "rows": ["....RRRR....","...RRRRRR...","..RRRRRRRR..",".RRRRRRRRRR.","RRRRRRRRRRRR",".WWWWWWWWWW.",".WYYWWWWYYW.",".WYYWWWWYYW.",".WWWWDDWWWW.",".WWWWDDWWWW.",".WWWWDDWWWW.",".KKKKKKKKKK."] },
+  "mural": { "pal": {"1":"#5a5a66","2":"#8a8a80","3":"#a8a89a"},
+    "rows": ["1111111111","1222222221","1223222321","1222322221","1232222231","1222232221","1223222221","1222223221","1222222221","1111111111"] },
+  "mural_done": { "pal": {"1":"#5a5a66","2":"#8a8a80","P":"#6a3a8a","R":"#ff4d4d"},
+    "rows": ["1111111111","1222222221","12P2222P21","12PPPPPP21","12PRPPRP21","12PPPPPP21","122PPPP221","12PPPPPP21","1222222221","1111111111"] },
+  "scroll": { "pal": {"2":"#e8dcb0","3":"#8a7a5a","K":"#6a4a2a"},
+    "rows": [".KKKKKKKK.","K22222222K","K23333332K","K22222222K","K23333332K","K22222222K","K23333332K",".KKKKKKKK."] },
+  "citizen_odd": { "pal": {"S":"#e8b88a","C":"#6a8a4a","H":"#4a3a2a","K":"#1a1c28","R":"#ff3030"},
+    "rows": ["...HHHHHH...","..HHHHHHHH..","..HSSSSSSH..","..SRSSSSRS..","..SSSSSSSS..","...SSSSSS...","...CCCCCC...","..CCCCCCCC..",".SCCCCCCCCS.","..CCCCCCCC..","..CC....CC..","..KK....KK.."] }
 };
 const REGION_FLOOR = ['f_castle', 'f_mtn', 'f_fort', 'f_swamp', 'f_forest'];
 // 地域ごとの装飾（柱＋床に置く小物プール）
@@ -693,7 +709,7 @@ function renderWorld() {
     } else if (isVillage(x, y)) {
       const open = allRegionsDone();
       cell.className += ' loc' + (open ? ' cur' : ' lock');
-      cell.innerHTML += '<div class="ov">🏠</div><div class="lbl">故郷</div>';
+      cell.innerHTML += decorOv('house') + '<div class="lbl">故郷</div>';
     }
     if (x === G.heroX && y === G.heroY) cell.innerHTML += spriteOv('hero');
     const slimeHere = G.limbo && G.choices.slime === 'fed' && x === VILLAGE_POS.x + 1 && y === VILLAGE_POS.y;
@@ -780,6 +796,7 @@ function roomDecor(ri) {
   return { pillar: cfg.pillar, map };
 }
 // ダンジョンは「1部屋ずつ」全画面表示。スワイプ/矢印で隣の部屋へ。歩き回りはしない。
+const centerOv = (key) => `<div class="ov">${makeSprite(key, 3)}</div>`; // 部屋の中央用(小物より大きい)
 function renderDungeon() {
   renderHud(); save();
   const ri = G.dungeonRegion, reg = REGIONS[ri], mz = reg._maze;
@@ -793,6 +810,7 @@ function renderDungeon() {
     : (mz.puzzle3 && mz.puzzle3.x === G.dx && mz.puzzle3.y === G.dy) ? mz.puzzle3 : null;
   const onPuzzle = !!here;
   const pzDone = here ? !!G.puzzleSolved[here.type] : false;
+  const darkRoom = onPuzzle && here.type === 'akari' && !pzDone; // 窓のない暗闇の間は、照らすまで暗い
   const doors = doorsAt(ri, G.dx, G.dy);
   const left = reg.list.filter((k, i) => !G.cleared[ri][i]).length;
 
@@ -813,7 +831,7 @@ function renderDungeon() {
     const isDoor = !!dir;
     const cell = mkCell();
     cell.innerHTML = tileBg(edge && !isDoor ? 'd_wall' : floor);
-    if (ry === 0 && (rx === 2 || rx === COLS - 3)) cell.innerHTML += decorOv('torch'); // 壁の松明
+    if (ry === 0 && (rx === 2 || rx === COLS - 3)) cell.innerHTML += decorOv(darkRoom ? 'torch_off' : 'torch'); // 壁の松明(暗闇の間では消えている)
     if (isDoor) { cell.className += ' tap'; cell.innerHTML += `<div class="ov">${{ N: '⬆️', S: '⬇️', W: '⬅️', E: '➡️' }[dir]}</div>`; cell.onclick = () => moveRoom(dir); }
     if (ry === 2 && (rx === 2 || rx === COLS - 3)) cell.innerHTML += decorOv(decor.pillar); // 柱
     const dk = rx + ',' + ry;
@@ -821,16 +839,28 @@ function renderDungeon() {
     if (rx === CX && ry === 2) {
       if (enemyHere) cell.innerHTML += `<div class="ov big">${makeSprite(ENEMIES[reg.list[idx]].sprite, 2.4)}</div>`;
       else if (onPuzzle) {
-        const chestPz = !['nim', 'liar', 'zebra', 'ulam', 'sphinx', 'nonogram', 'akari'].includes(here.type);
-        cell.innerHTML += pzDone ? (chestPz ? decorOv('chest_open') : '<div class="ov">✓</div>') : (here.type === 'nim' ? spriteOv('orochi') : here.type === 'liar' || here.type === 'zebra' ? spriteOv('soldier') : here.type === 'ulam' ? spriteOv('citizen') : here.type === 'sphinx' || here.type === 'nonogram' ? decorOv('statue') : here.type === 'akari' ? decorOv('torch') : decorOv('chest'));
+        // 解く前と解いたあとの絵(解いたときのメッセージに合わせる)
+        const t = here.type;
+        if (pzDone) {
+          if (t === 'nim') cell.innerHTML += G.choices.nimResult === 'lose' ? '' : decorOv('bones'); // 勝てば大蛇の骨、負ければ去っていって何も残らない
+          else if (t === 'nonogram') cell.innerHTML += centerOv('mural_done');
+          else if (t === 'akari') cell.innerHTML += centerOv('torch');
+          else if (t === 'zebra') cell.innerHTML += centerOv('scroll');
+          else if (t === 'ulam') cell.innerHTML += spriteOv('citizen');
+          else cell.innerHTML += decorOv('chest_open'); // 宝箱・門番・スフィンクスの匣は「宝箱が開く」
+        } else {
+          cell.innerHTML += t === 'nim' ? spriteOv('orochi') : t === 'liar' || t === 'zebra' ? spriteOv('soldier') : t === 'ulam' ? spriteOv('citizen_odd')
+            : t === 'sphinx' ? decorOv('statue') : t === 'nonogram' ? centerOv('mural') : t === 'akari' ? centerOv('torch_off') : decorOv('chest');
+        }
       }
-      else if (isExit) cell.innerHTML += '<div class="ov big">🔻</div>';
-      else if (idx >= 0) cell.innerHTML += '<div class="ov">💀</div>';
-      else if (isEnt) cell.innerHTML += '<div class="ov">🚪</div>';
+      else if (isExit) cell.innerHTML += centerOv('stairs');
+      else if (idx >= 0) cell.innerHTML += decorOv('bones'); // 倒した残党の跡
+      else if (isEnt) cell.innerHTML += centerOv('door'); // 入ってきた扉(封じられている)
     }
     if (rx === CX && ry === 5) cell.innerHTML += spriteOv('hero');
     grid.appendChild(cell);
   }
+  if (darkRoom) grid.style.filter = 'brightness(0.35)';
   wrap.appendChild(grid);
   const hint = document.createElement('div'); hint.className = 'maphint';
   hint.innerHTML = enemyHere ? '残党がいる！　戦うか、扉の方へスワイプして去るか。'
@@ -840,9 +870,10 @@ function renderDungeon() {
       : here.type === 'akari' ? '窓のない暗闇の間だ。誰かのすすり泣きが聞こえる……松明で照らせそうだ。'
       : here.type === 'zebra' ? '討伐隊の進軍録が散らばっている。読み解けば、何かが分かるかもしれない。'
       : here.type === 'ulam' ? '避難民たちが身を寄せ合っている。……ひとり、様子がおかしい。'
+      : here.type === 'sphinx' ? 'スフィンクスの石像が、封じられた匣を抱えている。光を撃ち込めば、中が探れそうだ。'
       : '封印された宝箱だ。挑戦して中身を頂くか？')
-    : (isExit && done) ? '🔻 階段がある。おりて次の地へ。'
-    : done ? '残党は全滅した。🔻 階段（出口）を探せ。'
+    : (isExit && done) ? '階段がある。おりて次の地へ。'
+    : done ? '残党は全滅した。階段（出口）を探せ。'
     : isEnt ? 'ここから入ってきた。扉はすでに封じられ、残党を殲滅するまで外へは戻れない。<br>矢印が出ている方向にだけ通路がある。タップかスワイプで移動。'
     : '矢印が出ている方向にだけ通路がある。タップかスワイプで隣の部屋へ。';
   wrap.appendChild(hint);
@@ -918,7 +949,17 @@ function puzzleFrame(title, body, controls, sub, onSwipe) {
   setCmds(controls || [{ label: '↩ あきらめる', wide: true, fn: puzzleQuit }], true);
 }
 function puzzleQuit() { const venue = PZ && PZ.venue; PZ = null; venue === 'gallery' ? showGallery() : venue === 'casino' ? showCasino() : renderDungeon(); }
+// 最後の一手を盤面に描いてから、少し間を置いて結果へ進む(その間は操作を受け付けない)
+const PZ_RENDER = { lights: () => lightsRender(), sokoban: () => sokoRender(), nonogram: () => nonoRender(''), akari: () => akariRender(''),
+  numberlink: () => nlRender(''), ricochet: () => ricoRender(''), hex: () => hexRender(''), mastermind: () => mmRender(''),
+  sphinx: () => bbRender(''), liar: () => liarRender(''), zebra: () => zebraRender(''), ulam: () => ulamRender(''), nim: () => orochiRender('') };
+function revealThen(next) {
+  const r = PZ && PZ_RENDER[PZ.type]; if (r) r();
+  setCmds([]); stage.style.pointerEvents = 'none';
+  setTimeout(() => { stage.style.pointerEvents = ''; next(); }, 700);
+}
 function puzzleSolved(extraMsgs) {
+  if (PZ && !PZ.revealed) { PZ.revealed = true; return revealThen(() => puzzleSolved(extraMsgs)); }
   if (PZ && PZ.venue === 'gallery') { PZ = null; return showMsgs(['🎉 解けた！'], showGallery); }
   if (PZ && PZ.venue === 'casino') return casinoWinFlow();
   const kind = PUZZLE_REWARD[PZ.type] || 'herb';
@@ -960,14 +1001,15 @@ function orochiRender(msg) {
 function nimOver() { return PZ.piles.every((p) => p === 0); }
 function orochiCut(i, n) {
   PZ.piles[i] -= n;
-  if (nimOver()) return orochiWin();
+  if (nimOver()) return revealThen(orochiWin);
   const p = PZ.piles; let x = 0; p.forEach((v) => x ^= v); let moved = false;
   if (x !== 0) { for (let k = 0; k < p.length; k++) { const t = p[k] ^ x; if (t < p[k]) { p[k] = t; moved = true; break; } } }
   if (!moved) { let mi = 0; p.forEach((v, k) => { if (v > p[mi]) mi = k; }); if (p[mi] > 0) p[mi]--; }
-  if (nimOver()) return orochiLose();
+  if (nimOver()) return revealThen(orochiLose);
   orochiRender('頭目の合図で、大蛇が自らの首を喰い切った。あなたの番。');
 }
 function orochiWin() {
+  if (PZ.venue !== 'gallery') G.choices.nimResult = 'win';
   if (PZ.venue === 'gallery') { PZ = null; return showMsgs(['最後の首が地に落ちた。🎉 勝ち！'], showGallery); }
   const before = lvOf(); G.puzzleSolved[PZ.type] = true; PZ = null;
   G.wear = Math.max(0, G.wear - 4); G.herbs += 1;
@@ -979,6 +1021,7 @@ function orochiWin() {
   ], () => renderDungeon());
 }
 function orochiLose() {
+  if (PZ.venue !== 'gallery') G.choices.nimResult = 'lose';
   if (PZ.venue === 'gallery') { PZ = null; return showMsgs(['最後の首を喰い切ったのは、大蛇のほうだった。負け……'], showGallery); }
   const before = lvOf(); G.puzzleSolved[PZ.type] = true; PZ = null;
   G.wear += 4;
@@ -1534,7 +1577,7 @@ function lightsRender() {
   const body = puzzleGrid(PZ.n);
   for (let i = 0; i < PZ.n * PZ.n; i++) {
     const c = mkCell(); c.innerHTML = tileBg('f_fort'); c.className += ' tap';
-    c.innerHTML += PZ.grid[i] ? decorOv('torch') : '<div class="ov" style="opacity:.25">🔥</div>';
+    c.innerHTML += decorOv(PZ.grid[i] ? 'torch' : 'torch_off');
     c.onclick = () => lightsPress(i); body.appendChild(c);
   }
   puzzleFrame('消えずの篝火 — すべて消せ', body, null, 'マスをタップ＝そのマスと上下左右が反転。<b>すべて消せ</b>。');
