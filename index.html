@@ -231,8 +231,10 @@ const SPRITES = {
     "rows": ["..GGGGGG..",".GGGGGGGG.","GGYGGGGYGG","GGGGGGGGGG","GGGRRRRGGG",".GG.RR.GG.","..G.RR.G..","...GGGG..."] },
   "torch_off": { "pal": {"1":"#5a3a1a","2":"#2e1d0c","K":"#26262a","G":"#4a4a50"},
     "rows": ["........","........","...KK...","..KGGK..","..KGGK..","...KK...","...11...","...11...","..2112..","...22..."] },
-  "stairs": { "pal": {"1":"#6a6a7a","2":"#8a8a9a","3":"#b0b0c0","4":"#3a3a48","K":"#0a0a12"},
-    "rows": ["4444444444","4333333334","43KKKKKK34","4322222234","432KKKK234","4321111234","4321KK1234","4321KK1234","4321KK1234","4444444444"] },
+  "stairs": { "pal": {"2":"#8a8a9a","3":"#c8c8d4","4":"#3a3a48","K":"#0a0a12"},
+    "rows": ["444444444444","433333333334","422222222224","4K33333333K4","4K22222222K4","4KK333333KK4","4KK222222KK4","4KKK3333KKK4","4KKK2222KKK4","4KKKK33KKKK4","4KKKKKKKKKK4","444444444444"] },
+  "stairs_sealed": { "pal": {"2":"#8a8a9a","3":"#c8c8d4","4":"#3a3a48","K":"#0a0a12","B":"#9a9aa6"},
+    "rows": ["444444444444","433B33B33B34","422B22B22B24","4K3B33B33BK4","4K2B22B22BK4","4KKB33B33BK4","4BBBBBBBBBB4","4KKB33B3KBK4","4KKB22B2KBK4","4KKBK3BKKBK4","4KKBKKBKKBK4","444444444444"] },
   "door": { "pal": {"1":"#8a5a2a","2":"#5a3a18","3":"#4a4a58","K":"#2a2a2e","Y":"#ffd23b"},
     "rows": ["..333333..",".31111113.","3112112113","3112112113","3112112113","3KKKKKKKK3","3112112113","31121121Y3","3112112113","3333333333"] },
   "house": { "pal": {"R":"#b8443a","W":"#e8d8b0","Y":"#ffe08a","D":"#6a4020","K":"#3a2a20"},
@@ -901,7 +903,7 @@ function renderDungeon() {
             : t === 'sphinx' ? decorOv('statue') : t === 'nonogram' ? centerOv('mural') : t === 'akari' ? centerOv('torch_off') : decorOv('chest');
         }
       }
-      else if (isExit) cell.innerHTML += centerOv('stairs');
+      else if (isExit) cell.innerHTML += centerOv(done ? 'stairs' : 'stairs_sealed'); // 残党が残っている間は鉄格子で封じられている
       else if (idx >= 0) cell.innerHTML += decorOv('bones'); // 倒した残党の跡
       else if (isEnt) cell.innerHTML += centerOv('door'); // 入ってきた扉(封じられている)
     }
@@ -921,6 +923,7 @@ function renderDungeon() {
       : here.type === 'sphinx' ? 'スフィンクスの石像が、封じられた匣を抱えている。光を撃ち込めば、中が探れそうだ。'
       : '封印された宝箱だ。挑戦して中身を頂くか？')
     : (isExit && done) ? '階段がある。おりて次の地へ。'
+    : isExit ? '階段がある。だが鉄格子で封じられていて、残党が残っているうちは降りられない。'
     : done ? '残党は全滅した。階段（出口）を探せ。'
     : isEnt ? 'ここから入ってきた。扉はすでに封じられ、残党を殲滅するまで外へは戻れない。<br>矢印が出ている方向にだけ通路がある。タップかスワイプで移動。'
     : '矢印が出ている方向にだけ通路がある。タップかスワイプで隣の部屋へ。';
