@@ -2659,8 +2659,105 @@ function showNameAsk() {
   } }], true);
 }
 
+
+// ===== ふっかつのじゅもん(状態⇔ひらがな28文字。隠しページのリンクから入力済みで開く) =====
+const JUMON_KANA = 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんがぎぐげござじずぜぞだでどばびぶべぼ'; // 64文字=6ビット
+const JUMON_PUZZLES = ['lights', 'nonogram', 'sokoban', 'akari', 'nim', 'liar', 'zebra', 'numberlink', 'ulam', 'sphinx', 'hex', 'mastermind', 'ricochet'];
+const JUMON_FLAGS = ['spared', 'sparedReunion', 'slimeReunion', 'casinoDoll', 'sunspot', 'soldSword', 'rested', 'merchantGift', 'limboThrone', 'corrupted', 'casinoSeen', 'acceptedOffer', 'executed'];
+const JUMON_SPELLS = ['yusha', 'raiga', 'frei', 'recover'];
+const JUMON_LEN = 28;
+const enumOf = (list, v) => Math.max(0, list.indexOf(v));
+// [項目, ビット数, 状態→数, 数→状態]
+const JUMON_FIELDS = [
+  ['wear', 7, (g) => Math.min(127, Math.max(0, Math.round(g.wear))), (g, v) => { g.wear = v; }],
+  ['hp', 11, (g) => Math.min(2047, g.hp), (g, v) => { g.hp = v; }],
+  ['mp', 8, (g) => g.mp, (g, v) => { g.mp = v; }],
+  ['gold', 10, (g) => Math.min(1023, Math.floor(g.gold / 50)), (g, v) => { g.gold = v * 50; }],
+  ['herbs', 5, (g) => Math.min(31, g.herbs), (g, v) => { g.herbs = v; }],
+  ['drops', 4, (g) => Math.min(15, g.drops), (g, v) => { g.drops = v; }],
+  ['herbBought', 4, (g) => Math.min(15, g.herbBought), (g, v) => { g.herbBought = v; }],
+  ['dropBought', 4, (g) => Math.min(15, g.dropBought), (g, v) => { g.dropBought = v; }],
+  ['saved', 5, (g) => g.saved, (g, v) => { g.saved = v; }],
+  ['lost', 5, (g) => g.lost, (g, v) => { g.lost = v; }],
+  ['state', 4, (g) => (g.descended ? 1 : 0) | (g.finaleDone ? 2 : 0) | (g.limbo ? 4 : 0) | (g.darkItem ? 8 : 0),
+    (g, v) => { g.descended = !!(v & 1); g.finaleDone = !!(v & 2); g.limbo = !!(v & 4); g.darkItem = !!(v & 8); }],
+  ['cleared', 22, (g) => { let b = 0, k = 0; g.cleared.forEach((a) => a.forEach((c) => { if (c) b += 2 ** k; k++; })); return b; },
+    (g, v) => { let k = 0; g.cleared = REGIONS.map((r) => r.list.map(() => Math.floor(v / 2 ** k++) % 2 === 1)); }],
+  ['puzzles', 13, (g) => JUMON_PUZZLES.reduce((b, p, i) => b | (g.puzzleSolved[p] ? 1 << i : 0), 0),
+    (g, v) => { g.puzzleSolved = {}; JUMON_PUZZLES.forEach((p, i) => { if (v & (1 << i)) g.puzzleSolved[p] = true; }); }],
+  ['casino', 3, (g) => ['hex', 'mastermind', 'ricochet'].reduce((b, p, i) => b | ((g.casinoWon || {})[p] ? 1 << i : 0), 0),
+    (g, v) => { g.casinoWon = {}; ['hex', 'mastermind', 'ricochet'].forEach((p, i) => { if (v & (1 << i)) g.casinoWon[p] = true; }); }],
+  ['firedEnter', 5, (g) => g.firedEnter.reduce((b, r) => b | (1 << r), 0), (g, v) => { g.firedEnter = [0, 1, 2, 3, 4].filter((r) => v & (1 << r)); }],
+  ['firedClear', 5, (g) => g.firedClear.reduce((b, r) => b | (1 << r), 0), (g, v) => { g.firedClear = [0, 1, 2, 3, 4].filter((r) => v & (1 << r)); }],
+  ['party', 3, (g) => PARTY.reduce((b, n, i) => b | (g.party.includes(n) ? 1 << i : 0), 0), (g, v) => { g.party = PARTY.filter((n, i) => v & (1 << i)); }],
+  ['forgot', 4, (g) => JUMON_SPELLS.reduce((b, n, i) => b | (g.forgot[n] ? 1 << i : 0), 0), (g, v) => { g.forgot = {}; JUMON_SPELLS.forEach((n, i) => { if (v & (1 << i)) g.forgot[n] = true; }); }],
+  ['gate', 5, (g) => [0, 1, 2, 3, 4].reduce((b, r) => b | ((g.gateOpened || {})[r] ? 1 << r : 0), 0), (g, v) => { g.gateOpened = {}; [0, 1, 2, 3, 4].forEach((r) => { if (v & (1 << r)) g.gateOpened[r] = true; }); }],
+  ['slime', 2, (g) => enumOf([undefined, 'fed', 'chased'], g.choices.slime), (g, v) => { if (v) g.choices.slime = ['', 'fed', 'chased'][v]; }],
+  ['bride', 2, (g) => enumOf([undefined, 'bianna', 'floria', 'none'], g.choices.bride), (g, v) => { if (v) g.choices.bride = ['', 'bianna', 'floria', 'none'][v]; }],
+  ['kingGave', 2, (g) => Math.min(3, g.choices.kingGave || 0), (g, v) => { if (v) g.choices.kingGave = v; }],
+  ['kingGaveGold', 3, (g) => Math.min(7, g.choices.kingGaveGold || 0), (g, v) => { if (v) g.choices.kingGaveGold = v; }],
+  ['egg', 2, (g) => enumOf([undefined, 'spared', 'crushed'], g.choices.dragonEgg), (g, v) => { if (v) g.choices.dragonEgg = ['', 'spared', 'crushed'][v]; }],
+  ['nim', 2, (g) => enumOf([undefined, 'win', 'lose'], g.choices.nimResult), (g, v) => { if (v) g.choices.nimResult = ['', 'win', 'lose'][v]; }],
+  ['streak', 2, (g) => Math.min(3, g.choices.merchantStreak || 0), (g, v) => { if (v) g.choices.merchantStreak = v; }],
+  ['flags', 13, (g) => JUMON_FLAGS.reduce((b, n, i) => b | (g.choices[n] ? 1 << i : 0), 0), (g, v) => { JUMON_FLAGS.forEach((n, i) => { if (v & (1 << i)) g.choices[n] = true; }); }],
+];
+function jumonEncode(g) {
+  const bits = [];
+  for (const [, n, get] of JUMON_FIELDS) { const v = get(g); for (let i = n - 1; i >= 0; i--) bits.push(Math.floor(v / 2 ** i) % 2); }
+  while (bits.length < (JUMON_LEN - 2) * 6) bits.push(0);
+  const chunks = []; for (let i = 0; i < bits.length; i += 6) chunks.push(bits.slice(i, i + 6).reduce((a, b) => a * 2 + b, 0));
+  const sum = chunks.reduce((a, c, i) => (a + c * (i + 7)) % 4096, 0); // 打ち間違い検出用(12ビット=2文字)
+  chunks.push(Math.floor(sum / 64), sum % 64);
+  return chunks.map((c) => JUMON_KANA[c]).join('');
+}
+function jumonDecode(str) {
+  const t = [...(str || '').replace(/[\s　]/g, '')];
+  if (t.length !== JUMON_LEN) return null;
+  const chunks = t.map((ch) => JUMON_KANA.indexOf(ch));
+  if (chunks.some((c) => c < 0)) return null;
+  const body = chunks.slice(0, -2), sum = body.reduce((a, c, i) => (a + c * (i + 7)) % 4096, 0);
+  if (Math.floor(sum / 64) !== chunks[JUMON_LEN - 2] || sum % 64 !== chunks[JUMON_LEN - 1]) return null;
+  const bits = []; body.forEach((c) => { for (let i = 5; i >= 0; i--) bits.push((c >> i) & 1); });
+  const g = newGame(); g.opened = true; g.seenHint = { _first: true }; g.view = 'world'; g.dungeonRegion = -1;
+  let p = 0;
+  for (const [, n, , set] of JUMON_FIELDS) { let v = 0; for (let i = 0; i < n; i++) v = v * 2 + bits[p++]; set(g, v); }
+  return g;
+}
+const jumonRows = (str) => [...str].reduce((a, ch, i) => a + ch + ((i + 1) % 7 === 0 && i < str.length - 1 ? '\n' : ''), '');
+function showJumon(prefill) {
+  G = null; hud.style.display = 'none'; msgwin.style.display = 'none';
+  stage.innerHTML = `<div class="title-scene" style="gap:14px">
+    <div class="sub" style="font-size:20px;color:#ffd23b">ふっかつのじゅもん</div>
+    <textarea id="jumon-in" rows="4" spellcheck="false" autocomplete="off"
+      style="font-family:inherit;font-size:20px;letter-spacing:6px;line-height:1.6;text-align:center;width:250px;resize:none;user-select:text;-webkit-user-select:text;
+      background:#0a0b1c;color:#f4f4f8;border:2px solid #f4f4f8;border-radius:5px;padding:10px"></textarea>
+    <div class="sub" id="jumon-msg"></div></div>`;
+  $('jumon-in').value = jumonRows(prefill || '');
+  const clearHash = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} };
+  setCmds([
+    { label: 'このじゅもんで はじめる', primary: true, wide: true, fn: () => {
+      const g = jumonDecode($('jumon-in').value);
+      if (!g) { $('jumon-msg').textContent = 'じゅもんが ちがいます'; return; }
+      const begin = () => { clearHash(); G = g; placeHeroAtLastVisit(); save(); if (G.finaleDone) markCleared(); renderHud(); renderScene(); };
+      if (!load()) return begin();
+      showChoice(['いまの冒険の記録は、上書きされます。', 'よろしいですか？'], [
+        { label: 'はい', primary: true, fn: begin },
+        { label: 'いいえ', fn: () => showJumon($('jumon-in') ? $('jumon-in').value : prefill) },
+      ]);
+    } },
+    { label: 'やめる', wide: true, fn: () => { clearHash(); showTitle(); } },
+  ], true);
+}
+// 隠しページのリンク(#jumon=…)から開いたときは、入力済みの呪文画面から始める
+function startFromUrl() {
+  const m = location.hash.match(/^#jumon=(.+)$/);
+  if (!m) return false;
+  let str = ''; try { str = decodeURIComponent(m[1]); } catch (e) { return false; }
+  showJumon(str); return true;
+}
+
 // ===== 起動 =====
-showTitle();
+if (!startFromUrl()) showTitle();
 </script>
 </body>
 </html>
