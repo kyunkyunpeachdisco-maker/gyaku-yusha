@@ -482,16 +482,16 @@ const regionCleared = (ri) => G.cleared[ri].every(Boolean);
 const regionUnlocked = (ri) => ri === 0 || regionCleared(ri - 1);
 const curRegion = () => { for (let i = 0; i < REGIONS.length; i++) if (!regionCleared(i)) return i; return REGIONS.length; };
 const allRegionsDone = () => curRegion() >= REGIONS.length;
-const remaining = () => { let n = G.finaleDone ? 0 : 1; G.cleared.forEach((a) => a.forEach((c) => { if (!c) n++; })); return n; };
-const roomAt = (ri, x, y) => REGIONS[ri]._maze.rooms.findIndex((p) => p[0] === x && p[1] === y);
-const walkableD = (ri, x, y) => { const g = REGIONS[ri]._maze.grid; return g[y] && g[y][x] && g[y][x] !== '#'; };
+const remaining = () => { if (G.endless) return G.cleared[ENDLESS_RI].filter((c) => !c).length; let n = G.finaleDone ? 0 : 1; G.cleared.forEach((a) => a.forEach((c) => { if (!c) n++; })); return n; };
+const roomAt = (ri, x, y) => regDef(ri)._maze.rooms.findIndex((p) => p[0] === x && p[1] === y);
+const walkableD = (ri, x, y) => { const g = regDef(ri)._maze.grid; return g[y] && g[y][x] && g[y][x] !== '#'; };
 const merchantRate = () => (G.choices && G.choices.bride === 'floria') ? 0.5 : 1; // フロリア商会の口利き
 const herbPrice = () => Math.round(HERB_BASE_PRICE * Math.pow(2, G.herbBought) * merchantRate());
 const dropPrice = () => Math.round(DROP_BASE_PRICE * Math.pow(2, G.dropBought) * merchantRate());
 const spellAvailable = (sp) => lvOf() >= sp.minLv;
 
 // ===== セーブ =====
-function save() { if (G && G.gallery) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) {} } // パズルの遊び場では保存しない
+function save() { if (G && G.gallery) return; try { localStorage.setItem(G && G.endless ? ENDLESS_KEY : SAVE_KEY, JSON.stringify(G)); } catch (e) {} } // パズルの遊び場では保存しない
 const CLEARED_KEY = 'gyaku-rpg-cleared'; // 最後のスライムに一度でも勝ったか(エンディングの種類は問わない)
 function everCleared() { try { return localStorage.getItem(CLEARED_KEY) === '1'; } catch (e) { return false; } }
 function markCleared() { try { localStorage.setItem(CLEARED_KEY, '1'); } catch (e) {} }
@@ -556,8 +556,8 @@ function renderHud() {
   hud.innerHTML = `
     <div class="row">
       <span class="${dropped ? 'lvdrop' : ''}">勇者 Lv.${s.lv}</span>
-      <span class="zanto">残党 あと${G.limbo ? 1 : remaining()}体</span>
-      <span>${G.limbo ? `罪 ${G.gold.toLocaleString()}　後悔 ×${G.herbs}　業 ×${G.drops}` : `💰 ${G.gold.toLocaleString()}G　🌿 ×${G.herbs}　💧 ×${G.drops}`}</span>
+      <span class="zanto">${G.endless ? `地下${G.endless.floor}階　救出 ${G.saved}人` : `残党 あと${G.limbo ? 1 : remaining()}体`}</span>
+      <span>${G.endless ? `🌿 ×${G.herbs}　💧 ×${G.drops}` : G.limbo ? `罪 ${G.gold.toLocaleString()}　後悔 ×${G.herbs}　業 ×${G.drops}` : `💰 ${G.gold.toLocaleString()}G　🌿 ×${G.herbs}　💧 ×${G.drops}`}</span>
     </div>
     <div class="row">
       <div class="barwrap"><span>HP ${Math.max(0,G.hp)}/${s.maxHp}</span>
@@ -640,7 +640,8 @@ function showTitle() {
   } }];
   if (saved) list.push({ label: 'つづきから', fn: () => { G = Object.assign(newGame(), saved); placeHeroAtLastVisit(); renderHud(); renderScene(); } });
   if (anySlot()) list.push({ label: '📝 きろくから再開', wide: true, fn: showLoadSlots });
-  if (everCleared()) list.push({ label: '🧩 パズル', wide: true, fn: showGallery });
+  if (everCleared()) list.push({ label: '🧩 パズル', fn: showGallery });
+  if (everCleared()) list.push({ label: '🗝 無限の迷宮', fn: showEndlessGate });
   setCmds(list, true);
 }
 
@@ -839,13 +840,13 @@ function tryFinale() {
 
 // 隣室への扉（迷路の通路が開いている方向）
 function doorsAt(ri, x, y) {
-  const g = REGIONS[ri]._maze.grid;
+  const g = regDef(ri)._maze.grid;
   return { N: !!(g[y - 1] && g[y - 1][x] !== '#'), S: !!(g[y + 1] && g[y + 1][x] !== '#'),
            W: g[y][x - 1] !== '#', E: g[y][x + 1] !== '#' };
 }
 // 部屋の装飾を決定的に配置（部屋ごとに変化）
 function roomDecor(ri) {
-  const cfg = DECOR[ri], rng = mulberry32(ri * 733 + G.dx * 37 + G.dy * 11);
+  const cfg = DECOR[ri === ENDLESS_RI ? endlessReg.band : ri], rng = mulberry32(ri * 733 + G.dx * 37 + G.dy * 11 + (G.endless ? G.endless.floor * 101 : 0));
   const slots = shuffle([[1, 1], [7, 1], [1, 5], [7, 5], [2, 4], [6, 4]], rng);
   const n = 2 + Math.floor(rng() * 3), map = {};
   for (let i = 0; i < n; i++) map[slots[i][0] + ',' + slots[i][1]] = cfg.items[Math.floor(rng() * cfg.items.length)];
@@ -854,9 +855,10 @@ function roomDecor(ri) {
 // ダンジョンは「1部屋ずつ」全画面表示。スワイプ/矢印で隣の部屋へ。歩き回りはしない。
 const centerOv = (key) => `<div class="ov">${makeSprite(key, 3)}</div>`; // 部屋の中央用(小物より大きい)
 function renderDungeon() {
+  if (G.endless && lvOf() <= 1) return endlessOver();
   renderHud(); save();
-  const ri = G.dungeonRegion, reg = REGIONS[ri], mz = reg._maze;
-  const floor = REGION_FLOOR[ri], done = regionCleared(ri), decor = roomDecor(ri);
+  const ri = G.dungeonRegion, reg = regDef(ri), mz = reg._maze;
+  const floor = REGION_FLOOR[ri === ENDLESS_RI ? reg.band : ri], done = regionCleared(ri), decor = roomDecor(ri);
   const idx = roomAt(ri, G.dx, G.dy);
   const isExit = G.dx === mz.ex[0] && G.dy === mz.ex[1];
   const isEnt = G.dx === mz.ent[0] && G.dy === mz.ent[1];
@@ -928,7 +930,7 @@ function renderDungeon() {
       : here.type === 'ulam' ? '避難民たちが身を寄せ合っている。……ひとり、様子がおかしい。'
       : here.type === 'sphinx' ? 'スフィンクスの石像が、封じられた匣を抱えている。光を撃ち込めば、中が探れそうだ。'
       : '封印された宝箱だ。挑戦して中身を頂くか？')
-    : (isExit && done) ? '階段がある。おりて次の地へ。'
+    : (isExit && done) ? (G.endless ? '階段がある。おりて次の階へ。' : '階段がある。おりて次の地へ。')
     : isExit ? '階段がある。だが鉄格子で封じられていて、残党が残っているうちは降りられない。'
     : done ? '残党は全滅した。階段（出口）を探せ。'
     : isEnt ? 'ここから入ってきた。扉はすでに封じられ、残党を殲滅するまで外へは戻れない。<br>矢印が出ている方向にだけ通路がある。タップかスワイプで移動。'
@@ -948,14 +950,14 @@ function renderDungeon() {
 }
 function moveRoom(dir) {
   if (G.view !== 'dungeon') return;
-  const ri = G.dungeonRegion, g = REGIONS[ri]._maze.grid;
+  const ri = G.dungeonRegion, g = regDef(ri)._maze.grid;
   const d = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] }[dir]; if (!d) return;
   const wx = G.dx + d[0], wy = G.dy + d[1];
   if (!g[wy] || g[wy][wx] === '#') return; // 扉がない
   G.dx += d[0] * 2; G.dy += d[1] * 2;
   renderDungeon();
 }
-function descendStairs() { backToWorld(G.dungeonRegion); } // クリア後のイベントは世界地図に戻ってから起きる
+function descendStairs() { if (G.endless) return endlessNextFloor(); backToWorld(G.dungeonRegion); } // クリア後のイベントは世界地図に戻ってから起きる
 let _swipe = null;
 function attachSwipe(el, onDir) {
   const start = (x, y) => { _swipe = { x, y }; };
@@ -1032,7 +1034,7 @@ function puzzleSolved(extraMsgs) {
 // --- 残党の多頭大蛇（中身はニム/石取り）: 残党との頭脳戦。勝てば撃退、負ければ返り討ち ---
 function orochiIntro(ri) {
   PZ = { type: 'nim', ri };
-  const necks = [3, 4, 5];
+  const necks = G.endless ? endlessNecks() : [3, 4, 5];
   showMsgs([
     '行く手をふさいだのは、魔王軍の残党と——彼らが飼い慣らした多頭の大蛇だった。',
     `残党の頭目「我らの愛蛇と、知恵比べといこうか。${necks.length}本の首、斬れるのは一手につき一本のみ」`,
@@ -1728,7 +1730,7 @@ function mapMenu(inDungeon, ctx) {
   const s = stats();
   const list = [];
   if (ctx && ctx.fight) list.push({ label: `⚔️ ${ENEMIES[ctx.fight.key].name}と戦う`, primary: true, wide: true, fn: () => startBattle(ctx.fight.key, G.dungeonRegion, ctx.fight.idx) });
-  if (ctx && ctx.puzzle) list.push({ label: ctx.puzzle === 'nim' ? '🐍 残党の大蛇と頭脳戦' : ctx.puzzle === 'liar' ? '🗣 門番の嘘を見破る' : ctx.puzzle === 'sphinx' ? '🔮 スフィンクスの匣に挑む' : ctx.puzzle === 'nonogram' ? '🧱 壁画を修復する' : ctx.puzzle === 'akari' ? '🔥 暗闇の間を照らす' : ctx.puzzle === 'zebra' ? '📜 進軍録の矛盾を解く' : ctx.puzzle === 'ulam' ? '🎭 化けた残党を暴く' : `🧩 ${PUZZLE_NAME[ctx.puzzle]}に挑戦`, primary: true, wide: true, fn: () => startPuzzle(ctx.puzzle, G.dungeonRegion) });
+  if (ctx && ctx.puzzle) list.push({ label: ctx.puzzle === 'nim' ? '🐍 残党の大蛇と頭脳戦' : ctx.puzzle === 'liar' ? '🗣 門番の嘘を見破る' : ctx.puzzle === 'sphinx' ? '🔮 スフィンクスの匣に挑む' : ctx.puzzle === 'nonogram' ? '🧱 壁画を修復する' : ctx.puzzle === 'akari' ? '🔥 暗闇の間を照らす' : ctx.puzzle === 'zebra' ? '📜 進軍録の矛盾を解く' : ctx.puzzle === 'ulam' ? '🎭 化けた残党を暴く' : `🧩 ${PUZZLE_NAME[ctx.puzzle]}に挑戦`, primary: true, wide: true, fn: () => startPuzzle(ctx.puzzle, G.endless ? endlessPzSeed() : G.dungeonRegion) });
   if (ctx && ctx.descend) list.push({ label: '🔻 階段をおりる', primary: true, wide: true, fn: descendStairs });
   if (G.limbo) {
     // アイテムは「背負ったもの」、メニューは「もう間に合わないもの」。
@@ -1946,7 +1948,7 @@ function renderBattle(e, isFinale) {
         <div class="u-state" id="a-state">突撃中！</div></div>
     </div>`;
   }
-  const bg = isFinale ? 'bg-finale' : `bg-r${battle.region}`;
+  const bg = isFinale ? 'bg-finale' : `bg-r${battle.region === ENDLESS_RI ? endlessReg.band : battle.region}`;
   stage.innerHTML = `<div class="battle-scene ${bg}">
       <div class="enemy-icon" id="e-icon"><div class="spr" id="e-spr">${makeSprite(e.sprite, px)}</div></div>
       <div class="enemy-shadow"></div>
@@ -2273,7 +2275,7 @@ function victory() {
   G.cleared[battle.region][battle.roomIdx] = true;
   const paid = Math.min(G.gold, e.gold || 0); G.gold -= paid;
   if (paid > 0) msgs.push(`復興支援金として ${paid.toLocaleString()}G を徴収された。`);
-  msgs.push(`残党は あと${remaining()}体。`);
+  msgs.push(G.endless ? `この階の残党は あと${remaining()}体。` : `残党は あと${remaining()}体。`);
 
   const lvBefore = battle.lvStart, keyDone = battle.key;
   battle = null;
@@ -2333,7 +2335,11 @@ function defeat() {
   if (hadHostage) G.lost++;
   G.cleared[region][roomIdx] = true;
   msgs.push('気がつけば、討伐隊がその残党を片づけていた——人質もろとも。');
-  if (region >= 3) G.darkItem = true; // ビアンナ/フロリアの街道以後の敗北。何の説明もなく、持ち物に加わる
+  if (G.endless) {
+    // 迷宮では、負けるたびに大きく削れる
+    G.wear += ENDLESS_DEFEAT_WEAR; G.hp = Math.min(G.hp, stats().maxHp);
+    msgs.push(`倒れた体は、元には戻らない。レベルが ${lvOf()} に下がった……`);
+  } else if (region >= 3) G.darkItem = true; // ビアンナ/フロリアの街道以後の敗北。何の説明もなく、持ち物に加わる
   renderHud(); save();
   showMsgs(msgs.concat(checkForget(lvBefore)), afterBattleFlow);
 }
@@ -2662,13 +2668,115 @@ function showNameAsk() {
 }
 
 
+// ===== 無限の迷宮(クリア後のおまけ。Lv99から降り続け、Lvが1になるまでに何人救えるか) =====
+const ENDLESS_RI = REGIONS.length; // 迷宮の階は、地域の次の番号として扱う
+const ENDLESS_KEY = 'gyaku-rpg-endless', ENDLESS_BEST_KEY = 'gyaku-rpg-endless-best';
+const ENDLESS_DEFEAT_WEAR = 10; // 負けたときに下がるLv
+// Lv帯ごとに出る残党(本編でそのLvのころに戦う相手)
+const ENDLESS_BANDS = [[85, 0], [70, 1], [55, 2], [40, 3], [0, 4]];
+const ENDLESS_POOL = [['durahan', 'golem'], ['dragon', 'icedrake'], ['deathknight', 'scorpion'], ['wraith', 'mandragora'], ['wolf', 'harpy']];
+const ENDLESS_PUZZLES = ['lights', 'liar', 'zebra', 'sphinx', 'mastermind', 'ricochet', 'nim', 'ulam']; // 盤面を毎回作り直せるもの
+let endlessReg = null;
+const regDef = (ri) => (ri === ENDLESS_RI ? endlessReg : REGIONS[ri]);
+const endlessBand = () => ENDLESS_BANDS.find(([lv]) => lvOf() >= lv)[1];
+// 深い階ほど残党は強い(HPは1階ごとに+6%、攻撃は+3%)
+function endlessEnemy(base, floor) {
+  const key = base + '@' + floor;
+  if (!ENEMIES[key]) {
+    const e = ENEMIES[base];
+    ENEMIES[key] = Object.assign({}, e, { hp: Math.round(e.hp * (1 + 0.06 * (floor - 1))), atk: Math.round(e.atk * (1 + 0.03 * (floor - 1))), gold: 0 });
+  }
+  return key;
+}
+// 階の作りは「迷宮の種＋階」から決まる。出る残党はその階に降りたときのLvで決め、セーブに残す
+function buildEndlessFloor() {
+  const E = G.endless, rng = mulberry32(E.seed + E.floor * 7919);
+  const grid = genMaze(3, 3, E.seed + E.floor * 131);
+  const W = grid[0].length, H = grid.length;
+  const cells = []; for (let y = 1; y < H; y += 2) for (let x = 1; x < W; x += 2) cells.push([x, y]);
+  const ex = [W - 2, H - 2];
+  const cand = shuffle(cells.filter((c) => !(c[0] === 1 && c[1] === 1) && !(c[0] === ex[0] && c[1] === ex[1])), rng);
+  const K = E.list.length, pc = cand[K];
+  E.list.forEach((k) => endlessEnemy(k, E.floor));
+  endlessReg = { name: `無限の迷宮 地下${E.floor}階`, band: E.band, list: E.list.map((k) => k + '@' + E.floor),
+    _maze: { grid, W, H, ent: [1, 1], ex, rooms: cand.slice(0, K), puzzle: { x: pc[0], y: pc[1], type: E.puzzle }, puzzle2: null, puzzle3: null } };
+}
+function endlessEnterFloor() {
+  const E = G.endless, rng = mulberry32(E.seed * 31 + E.floor * 977);
+  E.band = endlessBand();
+  const n = Math.min(4, 2 + Math.floor((E.floor + 1) / 4)); // 1〜2階は2体、3階から3体、7階から4体
+  E.list = []; for (let i = 0; i < n; i++) E.list.push(ENDLESS_POOL[E.band][Math.floor(rng() * 2)]);
+  E.puzzle = ENDLESS_PUZZLES[Math.floor(rng() * ENDLESS_PUZZLES.length)];
+  G.cleared[ENDLESS_RI] = E.list.map(() => false);
+  G.gateOpened = {}; G.puzzleSolved = {}; G.choices = {};
+  buildEndlessFloor();
+  G.view = 'dungeon'; G.dungeonRegion = ENDLESS_RI; G.dx = 1; G.dy = 1;
+}
+const endlessPzSeed = () => 1000 + (G.endless.seed % 100000) + G.endless.floor * 17;
+function endlessNecks() { // 先手が勝てる首の数(3本の首の数のxorが0でない)
+  const rng = mulberry32(endlessPzSeed());
+  for (;;) { const a = [2, 2, 2].map((m) => m + Math.floor(rng() * 5)); if ((a[0] ^ a[1] ^ a[2]) !== 0) return a; }
+}
+function endlessNextFloor() {
+  G.endless.floor++; endlessEnterFloor(); save();
+  showMsgs([`地下${G.endless.floor}階へ降りた。`], renderDungeon);
+}
+function loadEndless() { try { return JSON.parse(localStorage.getItem(ENDLESS_KEY)); } catch (e) { return null; } }
+function endlessBest() { try { return JSON.parse(localStorage.getItem(ENDLESS_BEST_KEY)); } catch (e) { return null; } }
+function startEndless() {
+  G = newGame(); G.opened = true; G.descended = true; G.party = []; G.gold = 0; G.seenHint = { _first: true };
+  G.hp = stats().maxHp;
+  G.cleared.push([]);
+  G.endless = { seed: Math.floor(Math.random() * 1e9), floor: 1 };
+  endlessEnterFloor(); save(); renderHud();
+  showMsgs([
+    '魔王城の地下深くに、底の見えない迷宮があった。',
+    '降りるほどに、残党は強くなっていく。',
+    'レベルが1になるまでに、何人の人質を救えるか。',
+  ], renderDungeon);
+}
+function resumeEndless(saved) { G = saved; buildEndlessFloor(); renderHud(); renderDungeon(); }
+function showEndlessGate() {
+  const saved = loadEndless(), best = endlessBest();
+  hud.style.display = 'none'; msgwin.style.display = 'none';
+  stage.innerHTML = `<div class="title-scene" style="gap:12px">
+    <div class="sub" style="font-size:20px;color:#ffd23b">🗝 無限の迷宮</div>
+    <div class="sub">Lv99から降りはじめ、Lvが1になったら終わり。<br>救った人質の数を競います。</div>
+    <div class="sub">${best ? `これまでの最高：救出 ${best.saved}人（地下${best.floor}階）` : 'まだ記録はない。'}</div></div>`;
+  const list = [];
+  if (saved) list.push({ label: `つづきから（地下${saved.endless.floor}階・救出 ${saved.saved}人）`, primary: true, wide: true, fn: () => resumeEndless(saved) });
+  list.push({ label: saved ? 'はじめから' : 'はじめる', primary: !saved, wide: true, fn: () => {
+    if (!saved) return startEndless();
+    showChoice(['いまの挑戦は消えます。', '最初からはじめますか？'], [
+      { label: 'はじめる', fn: startEndless },
+      { label: 'やめる', fn: showEndlessGate },
+    ]);
+  } });
+  list.push({ label: 'もどる', wide: true, fn: showTitle });
+  setCmds(list, true);
+}
+function endlessOver() {
+  const E = G.endless, best = endlessBest(), score = { saved: G.saved, floor: E.floor };
+  const isBest = !best || score.saved > best.saved || (score.saved === best.saved && score.floor > best.floor);
+  try { if (isBest) localStorage.setItem(ENDLESS_BEST_KEY, JSON.stringify(score)); localStorage.removeItem(ENDLESS_KEY); } catch (e) {}
+  G = null;
+  hud.style.display = 'none';
+  stage.innerHTML = `<div class="title-scene" style="gap:14px">
+    <div class="spr">${makeSprite('hero', 5)}</div>
+    <div class="sub" style="font-size:20px;color:#ffd23b">救出 ${score.saved}人</div>
+    <div class="sub">たどり着いたのは 地下${score.floor}階。</div>
+    <div class="sub">${isBest ? 'これまでの最高記録です。' : `これまでの最高：救出 ${best.saved}人（地下${best.floor}階）`}</div></div>`;
+  showMsgs(['勇者のレベルは、1になった。', 'もう、剣を持ち上げることもできない。'], () => setCmds([{ label: 'タイトルへ', wide: true, fn: showTitle }], true));
+}
+
 // ===== ふっかつのじゅもん(状態⇔ひらがな28文字。隠しページのリンクから入力済みで開く) =====
 const JUMON_KANA = 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんがぎぐげござじずぜぞだでどばびぶべぼ'; // 64文字=6ビット
 const JUMON_PUZZLES = ['lights', 'nonogram', 'sokoban', 'akari', 'nim', 'liar', 'zebra', 'numberlink', 'ulam', 'sphinx', 'hex', 'mastermind', 'ricochet'];
 const JUMON_FLAGS = ['spared', 'sparedReunion', 'slimeReunion', 'casinoDoll', 'sunspot', 'soldSword', 'rested', 'merchantGift', 'limboThrone', 'corrupted', 'casinoSeen', 'acceptedOffer', 'executed'];
 const JUMON_SPELLS = ['yusha', 'raiga', 'frei', 'recover'];
 const JUMON_LEN = 28;
-const JUMON_PUZZLE = 'なぞときだけあそばせてください'; // 進行状態は変えず、タイトルの「パズル」だけを開放する
+const JUMON_PUZZLE = 'ほんぺんのあとのおたのしみ'; // 進行状態は変えず、タイトルの「パズル」と「無限の迷宮」だけを開く
+const JUMON_PUZZLE_OLD = 'なぞときだけあそばせてください'; // 以前のじゅもん(同じ効果)
 const enumOf = (list, v) => Math.max(0, list.indexOf(v));
 // [項目, ビット数, 状態→数, 数→状態]
 const JUMON_FIELDS = [
@@ -2739,9 +2847,9 @@ function showJumon(prefill) {
   const clearHash = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} };
   setCmds([
     { label: 'このじゅもんで はじめる', primary: true, wide: true, fn: () => {
-      if ($('jumon-in').value.replace(/[\s　]/g, '') === JUMON_PUZZLE) {
+      if ([JUMON_PUZZLE, JUMON_PUZZLE_OLD].includes($('jumon-in').value.replace(/[\s　]/g, ''))) {
         clearHash(); markCleared();
-        return showMsgs(['パズルの間が ひらかれた。', 'タイトルの「パズル」から 遊べます。'], showTitle);
+        return showMsgs(['パズルの間と 無限の迷宮が ひらかれた。', 'タイトルから 遊べます。'], showTitle);
       }
       const g = jumonDecode($('jumon-in').value);
       if (!g) { $('jumon-msg').textContent = 'じゅもんが ちがいます'; return; }
