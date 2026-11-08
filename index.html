@@ -117,11 +117,11 @@
   .mapgrid { display:grid; border:3px solid #f4f4f8; box-shadow:0 0 0 2px #000; line-height:0; }
   .cell { width:30px; height:30px; position:relative; }
   .cell .bg { position:absolute; inset:0; }
-  .cell .bg svg { width:30px; height:30px; display:block; }
+  .cell .bg .sprite { width:30px; height:30px; display:block; pointer-events:none; }
   .cell .ov { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:17px; z-index:1; }
-  .cell .ov svg { max-width:26px; max-height:26px; }
+  .cell .ov .sprite { max-width:26px; max-height:26px; object-fit:contain; pointer-events:none; }
   .cell .ov.big { font-size:30px; z-index:5; overflow:visible; }
-  .cell .ov.big svg { width:54px; height:54px; max-width:none; max-height:none; }
+  .cell .ov.big .sprite { width:54px; height:54px; max-width:none; max-height:none; }
   .cell.loc::after { content:''; position:absolute; inset:0; box-shadow:inset 0 0 0 2px #ffd23b; pointer-events:none; z-index:3; }
   .cell.cur::after { box-shadow:inset 0 0 0 2px #6cf06c; }
   .cell.lock { filter:brightness(0.4); }
@@ -131,8 +131,8 @@
   /* 世界地図: 大きな地図の一部を映し、指でスクロールして見渡す */
   .worldview { width:min(100%, 352px); height:min(56dvh, 448px); overflow:auto; -webkit-overflow-scrolling:touch; border:3px solid #f4f4f8; box-shadow:0 0 0 2px #000; }
   .worldview .mapgrid { border:none; box-shadow:none; }
-  .mapgrid.big .cell, .mapgrid.big .cell .bg svg { width:32px; height:32px; }
-  .mapgrid.big .cell .ov svg { max-width:28px; max-height:28px; }
+  .mapgrid.big .cell, .mapgrid.big .cell .bg .sprite { width:32px; height:32px; }
+  .mapgrid.big .cell .ov .sprite { max-width:28px; max-height:28px; }
   .mapgrid.big .cell .lbl { font-size:10px; bottom:-2px; white-space:nowrap; overflow:visible; left:-12px; right:-12px; }
 </style>
 </head>
@@ -146,6 +146,9 @@
 </div>
 <script>
 'use strict';
+// Google Fonts の日本語フォントは文字ごとに小分けで読まれ、初めて出る漢字ではその分の読み込み中に文字が消える
+// (セリフの途中で一瞬止まり、続きがまとめて出る)。起動時に、このゲームで使う文字の分を裏で先に読んでおく
+try { document.fonts.load("16px 'DotGothic16'", [...new Set(document.currentScript.textContent)].join('')).catch(() => {}); } catch (e) {}
 
 // ===== ドット絵スプライト =====
 const SPRITES = {
@@ -304,6 +307,17 @@ function makeSprite(key, px) {
   const svg = `<svg class="sprite" viewBox="0 0 ${w} ${h}" width="${w * px}" height="${h * px}" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
   _sprCache[ck] = svg;
   return svg;
+}
+// 地図のマス用: 同じ絵を1枚の画像にする。SVGのままだと地図全体で十数万個の要素になり、
+// セリフを1文字出すたびの描き直しが重くなって、スマホで文字送りが引っかかる
+const _imgCache = {};
+function spriteImg(key, px) {
+  const ck = key + '@' + px;
+  if (_imgCache[ck]) return _imgCache[ck];
+  const svg = makeSprite(key, px);
+  if (!svg) return '';
+  const m = svg.match(/ width="([\d.]+)" height="([\d.]+)"/);
+  return (_imgCache[ck] = `<img class="sprite" alt="" draggable="false" width="${m[1]}" height="${m[2]}" src="data:image/svg+xml,${encodeURIComponent(svg)}">`);
 }
 
 // ===== 定数 =====
@@ -723,9 +737,9 @@ function placeHeroAtLastVisit() {
 }
 
 function mkCell() { const c = document.createElement('div'); c.className = 'cell'; return c; }
-function tileBg(key) { return `<div class="bg">${makeSprite(key, 2)}</div>`; }
-function spriteOv(key) { return `<div class="ov">${makeSprite(key, 1.5)}</div>`; }
-function decorOv(key) { const sp = SPRITES[key]; const w = Math.max.apply(null, sp.rows.map((r) => r.length)), h = sp.rows.length; return `<div class="ov">${makeSprite(key, Math.max(1, Math.round(24 / Math.max(w, h))))}</div>`; }
+function tileBg(key) { return `<div class="bg">${spriteImg(key, 2)}</div>`; }
+function spriteOv(key) { return `<div class="ov">${spriteImg(key, 1.5)}</div>`; }
+function decorOv(key) { const sp = SPRITES[key]; const w = Math.max.apply(null, sp.rows.map((r) => r.length)), h = sp.rows.length; return `<div class="ov">${spriteImg(key, Math.max(1, Math.round(24 / Math.max(w, h))))}</div>`; }
 
 function renderWorld() {
   // 魔王城のクリア後のイベント(飛行艇)を終えたら、地上に降りている
@@ -854,7 +868,7 @@ function roomDecor(ri) {
   return { pillar: cfg.pillar, map };
 }
 // ダンジョンは「1部屋ずつ」全画面表示。スワイプ/矢印で隣の部屋へ。歩き回りはしない。
-const centerOv = (key) => `<div class="ov">${makeSprite(key, 3)}</div>`; // 部屋の中央用(小物より大きい)
+const centerOv = (key) => `<div class="ov">${spriteImg(key, 3)}</div>`; // 部屋の中央用(小物より大きい)
 function renderDungeon() {
   if (G.endless && lvOf() <= 1) return endlessOver();
   renderHud(); save();
