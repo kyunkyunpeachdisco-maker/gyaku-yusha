@@ -761,11 +761,12 @@ function renderWorld() {
     else if (ri !== null || isVillage(x, y)) { cell.className += ' tap'; cell.onclick = () => travelTo(x, y); }
     grid.appendChild(cell);
   }
+  // 説明は地図の上に置く(下に置くとスマホでは画面外に隠れて読まれない)
+  const hint = document.createElement('div'); hint.className = 'maphint';
+  hint.innerHTML = G.descended ? '地図は指でなぞって見渡せる。<br>行き先をタップで移動、もう一度タップで中に入る。' : '魔王城をタップすると中に入る。残党を殲滅し、飛行艇で地上へ降りよ。';
+  wrap.appendChild(hint);
   const view = document.createElement('div'); view.className = 'worldview';
   view.appendChild(grid); wrap.appendChild(view);
-  const hint = document.createElement('div'); hint.className = 'maphint';
-  hint.innerHTML = G.descended ? '場所をタップすると移動、もう一度タップすると中に入る。地図は指で動かして見渡せる。' : '魔王城をタップすると中に入る。残党を殲滅し、飛行艇で地上へ降りよ。';
-  wrap.appendChild(hint);
   stage.appendChild(wrap);
   // 勇者を画面の真ん中に映す
   view.scrollLeft = G.heroX * 32 + 16 - view.clientWidth / 2;
