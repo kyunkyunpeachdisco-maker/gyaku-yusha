@@ -80,7 +80,7 @@
   .unit .u-state.warn { color: #ffd23b; animation: blink 0.6s steps(1) infinite; }
   .dmgnum { position: absolute; left: 50%; top: 26%; font-weight: bold; font-size: 28px; color: #fff;
     text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000; pointer-events: none; animation: dn 0.7s ease-out forwards; }
-  .dmgnum.heal { color: #6cf06c; } .dmgnum.weak { color: #ffd23b; } .dmgnum.resist { color: #8a8a9a; }
+  .dmgnum.heal { top: auto; bottom: 8%; color: #6cf06c; } /* 勇者の回復は画面手前に(人質の横だと人質が回復したように見える) */ .dmgnum.weak { color: #ffd23b; } .dmgnum.resist { color: #8a8a9a; }
   .dmgnum.me { top: auto; bottom: 26%; color: #ff8a8a; font-size: 24px; }
   @keyframes dn { 0%{opacity:0;transform:translate(-50%,8px) scale(0.6);} 25%{opacity:1;transform:translate(-50%,-6px) scale(1.15);} 100%{opacity:0;transform:translate(-50%,-38px) scale(1);} }
   .map-scene h2 { color: #ffd23b; font-size: 18px; margin-bottom: 4px; letter-spacing: 1px; }
@@ -1966,7 +1966,7 @@ function renderBattle(e, isFinale) {
   if (!isFinale) {
     sub = `<div class="subunits">
       <div class="unit" id="u-citizen"><div class="u-spr">${makeSprite('citizen', 4)}</div>市民（人質）
-        <div class="bar hp"><div id="c-hp" style="width:100%"></div></div></div>
+        <div class="bar hp"><div id="c-hp" style="width:100%"></div></div><div id="c-hpnum">HP 40/40</div></div>
       <div class="unit" id="u-ally"><div class="u-spr">${makeSprite('soldier', 4)}</div>討伐隊の兵士
         <div class="u-state" id="a-state">突撃中！</div></div>
     </div>`;
@@ -2250,7 +2250,10 @@ function hostageThreat(msgs) {
 }
 // 演出はすべて「そのメッセージが表示された瞬間」に走る(数値はスナップショットで渡す)
 function setEnemyHpBarTo(hp, max) { const b = $('e-hp'); if (b) b.style.width = Math.round(Math.max(0, hp) / max * 100) + '%'; }
-function setCitizenBarTo(hp) { const b = $('c-hp'); if (b) b.style.width = Math.round(Math.max(0, hp) / 40 * 100) + '%'; }
+function setCitizenBarTo(hp) {
+  const b = $('c-hp'); if (b) b.style.width = Math.round(Math.max(0, hp) / 40 * 100) + '%';
+  const n = $('c-hpnum'); if (n) n.textContent = `HP ${Math.max(0, hp)}/40`;
+}
 function enemyHitFx(d, tag, hpAfter, max) {
   return () => {
     const icon = $('e-icon'), spr = $('e-spr');
