@@ -613,9 +613,21 @@ function nextMsg() {
   clearInterval(typeTimer);
   typeTimer = setInterval(() => { curShown++; if (curShown >= curTokens.length) { curShown = curTokens.length; typing = false; clearInterval(typeTimer); } renderTyping(); }, 22);
 }
-msgwin.addEventListener('click', () => {
+function advanceMsg() {
   if (typing) { curShown = curTokens.length; typing = false; clearInterval(typeTimer); renderTyping(); return; }
   if (msgDone || msgQueue.length) nextMsg();
+}
+const msgActive = () => msgwin.style.display === 'block' && (typing || msgDone || msgQueue.length);
+// メッセージ中は画面のどこを押しても送る。キャプチャで横取りし、裏の地図・パズルのマスには届かせない
+// (表示前に判定するので、メッセージを開いたタップ自体で送られることはない)
+document.addEventListener('click', (e) => {
+  if (!msgActive() || e.target.closest('a, input, select, textarea')) return;
+  e.stopPropagation(); e.preventDefault(); advanceMsg();
+}, true);
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  if (e.repeat || !msgActive() || e.target.closest('input, select, textarea')) return;
+  e.preventDefault(); advanceMsg();
 });
 // メッセージ → 選択肢
 function showChoice(msgs, options) { showMsgs(msgs, () => setCmds(options, true)); }
@@ -1776,18 +1788,14 @@ function mapMenu(inDungeon, ctx) {
 function showStatus() {
   if (G.limbo) {
     showMsgs([
-      `<b>そうび</b>`,
-      `残酷　こうげき +——／無念　しゅび +——`,
-      `<b>仲間</b>：破滅`,
+      `<b>そうび</b><br>残酷　こうげき +——／無念　しゅび +——<br><b>仲間</b>：破滅`,
     ], renderScene);
     return;
   }
   const s = stats();
   const party = G.party.length ? G.party.join('、') : '——（もう、誰もいない）';
   showMsgs([
-    `<b>そうび</b>`,
-    `英雄の剣　こうげき +${s.eqAtk}／英雄のよろい　しゅび +${s.eqDef}`,
-    `<b>仲間</b>：${party}`,
+    `<b>そうび</b><br>英雄の剣　こうげき +${s.eqAtk}／英雄のよろい　しゅび +${s.eqDef}<br><b>仲間</b>：${party}`,
   ], renderScene);
 }
 // 「たびのこころえ」は削除した——ルールは遊びの中で気づかせる。解説が読みたければ攻略本がある
