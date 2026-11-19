@@ -1355,7 +1355,7 @@ function ricoRender(msg) {
   puzzleFrame('滑る魔像 — 祭壇へ導け', body, [
     { label: '←', fn: () => ricoMove('W') }, { label: '→', fn: () => ricoMove('E') },
     { label: '↑', fn: () => ricoMove('N') }, { label: '↓', fn: () => ricoMove('S') },
-    { label: '↺ 戻す', fn: ricoReset }, { label: '↩ あきらめる', fn: puzzleQuit },
+    { label: '↺ やり直す', fn: ricoReset }, { label: '↩ あきらめる', fn: puzzleQuit },
   ], (msg ? msg + '<br>' : '') + `魔像は壁か岩に当たるまで滑り続ける。◎の祭壇へ。最短 <b>${PZ.par}</b> 手（今 ${PZ.moves} 手）。スワイプ／矢印で。`, ricoMove);
 }
 // --- ヘックス: 自分の色で盤の端から端まで繋げ（残党とのAI対戦・引き分けなし）---
