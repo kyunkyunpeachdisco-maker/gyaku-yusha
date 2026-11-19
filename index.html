@@ -133,6 +133,24 @@
   .worldview .mapgrid { border:none; box-shadow:none; }
   .mapgrid.big .cell, .mapgrid.big .cell .bg .sprite { width:32px; height:32px; }
   .mapgrid.big .cell .ov .sprite { max-width:28px; max-height:28px; }
+  /* 押しやすい大きさのマス(ダンジョンの部屋=lg、篝火の盤=xl) */
+  .mapgrid.lg .cell, .mapgrid.lg .cell .bg .sprite { width:36px; height:36px; }
+  .mapgrid.lg .cell .ov .sprite { max-width:31px; max-height:31px; }
+  .mapgrid.xl .cell, .mapgrid.xl .cell .bg .sprite { width:44px; height:44px; }
+  .mapgrid.xl .cell .ov .sprite { max-width:36px; max-height:36px; }
+  .worldview { scrollbar-color:#4a4a72 #0a0b1c; }
+  .worldview::-webkit-scrollbar { width:8px; height:8px; }
+  .worldview::-webkit-scrollbar-track, .worldview::-webkit-scrollbar-corner { background:#0a0b1c; }
+  .worldview::-webkit-scrollbar-thumb { background:#4a4a72; border-radius:4px; }
+  /* ヘックス: 尖った頂点が上下の六角形。外側の六角形の色が枠線(青=上下の辺/赤=左右の辺) */
+  .hexboard { position:relative; margin:4px auto; }
+  .hexcell { position:absolute; width:36px; height:42px; background:#000;
+    clip-path:polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+  .hexcell .in { position:absolute; inset:3px; clip-path:inherit; display:flex; align-items:center; justify-content:center; }
+  .hexcell .in .bg .sprite { width:100%; height:100%; display:block; pointer-events:none; }
+  .hexcell .in .bg { position:absolute; inset:0; }
+  .hexcell .stone { position:relative; font-size:22px; line-height:1; }
+  .hexcell.tap { cursor:pointer; } .hexcell.tap:active { filter:brightness(1.4); }
   .mapgrid.big .cell .lbl { font-size:10px; bottom:-2px; white-space:nowrap; overflow:visible; left:-12px; right:-12px; }
 </style>
 </head>
@@ -905,7 +923,7 @@ function renderDungeon() {
   ttl.textContent = '🏛 ' + reg.name + (done ? '（殲滅済）' : `　残り${left}体`); wrap.appendChild(ttl);
 
   const COLS = 9, ROWS = 7, CX = 4, DY = 3;
-  const grid = document.createElement('div'); grid.className = 'mapgrid'; grid.style.gridTemplateColumns = `repeat(${COLS},30px)`;
+  const grid = document.createElement('div'); grid.className = 'mapgrid lg'; grid.style.gridTemplateColumns = `repeat(${COLS},36px)`;
   for (let ry = 0; ry < ROWS; ry++) for (let rx = 0; rx < COLS; rx++) {
     const edge = ry === 0 || ry === ROWS - 1 || rx === 0 || rx === COLS - 1;
     let dir = '';
@@ -1375,19 +1393,20 @@ function hexPlace(i) {
   hexRender('あなたの番・青。');
 }
 function hexRender(msg, lost) {
-  const N = HEX_N, body = document.createElement('div');
-  for (let r = 0; r < N; r++) {
-    const row = document.createElement('div'); row.className = 'mapgrid'; row.style.gridTemplateColumns = `repeat(${N},30px)`; row.style.marginLeft = (r * 15) + 'px';
-    for (let c = 0; c < N; c++) {
-      const v = PZ.board[r * N + c], cell = mkCell();
-      cell.innerHTML = tileBg('f_mtn');
-      if (r === 0 || r === N - 1) cell.innerHTML += '<div class="ov" style="box-shadow:inset 0 0 0 2px #5aa0ff"></div>';
-      if (c === 0 || c === N - 1) cell.innerHTML += '<div class="ov" style="box-shadow:inset 0 0 0 2px #ff6a6a"></div>';
-      if (v) cell.innerHTML += `<div class="ov" style="color:${v === 1 ? '#5aa0ff' : '#ff6a6a'};font-size:22px">●</div>`;
-      else if (!lost) { cell.className += ' tap'; cell.onclick = () => hexPlace(r * N + c); }
-      row.appendChild(cell);
-    }
-    body.appendChild(row);
+  // 行ごとに半マス右へずらす(隣接は hexNbrs のとおり: 上の行の c と c+1、下の行の c-1 と c)
+  const N = HEX_N, W = 36, H = 42, DY = 32, body = document.createElement('div');
+  body.className = 'hexboard'; body.style.width = (N * W + (N - 1) * W / 2) + 'px'; body.style.height = (H + (N - 1) * DY) + 'px';
+  const BLUE = '#5aa0ff', RED = '#ff6a6a';
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const v = PZ.board[r * N + c], cell = document.createElement('div');
+    cell.className = 'hexcell'; cell.style.left = (c * W + r * W / 2) + 'px'; cell.style.top = (r * DY) + 'px';
+    const tb = r === 0 || r === N - 1, lr = c === 0 || c === N - 1;
+    if (tb && lr) cell.style.background = c === 0 ? `linear-gradient(90deg, ${RED} 50%, ${BLUE} 50%)` : `linear-gradient(90deg, ${BLUE} 50%, ${RED} 50%)`;
+    else if (tb) cell.style.background = BLUE;
+    else if (lr) cell.style.background = RED;
+    cell.innerHTML = `<div class="in">${tileBg('f_mtn')}${v ? `<span class="stone" style="color:${v === 1 ? BLUE : RED}">●</span>` : ''}</div>`;
+    if (!v && !lost) { cell.className += ' tap'; cell.onclick = () => hexPlace(r * N + c); }
+    body.appendChild(cell);
   }
   const ctrls = lost ? [{ label: '↺ やり直す', primary: true, wide: true, fn: hexInit }, { label: '↩ あきらめる', wide: true, fn: puzzleQuit }]
     : [{ label: '↩ あきらめる', wide: true, fn: puzzleQuit }];
@@ -1670,16 +1689,19 @@ function lightsInit() {
   const rng = mulberry32(PZ.ri * 999 + 7);
   for (let k = 0; k < 4 + Math.floor(rng() * 3); k++) lightsToggle(Math.floor(rng() * 25));
   while (PZ.grid.every((v) => !v)) lightsToggle(Math.floor(rng() * 25));
+  PZ.start = PZ.grid.slice();
   lightsRender();
 }
 function lightsRender() {
-  const body = puzzleGrid(PZ.n);
+  const body = puzzleGrid(PZ.n); body.classList.add('xl'); body.style.gridTemplateColumns = `repeat(${PZ.n},44px)`;
   for (let i = 0; i < PZ.n * PZ.n; i++) {
     const c = mkCell(); c.innerHTML = tileBg('f_fort'); c.className += ' tap';
     c.innerHTML += decorOv(PZ.grid[i] ? 'torch' : 'torch_off');
     c.onclick = () => lightsPress(i); body.appendChild(c);
   }
-  puzzleFrame('消えずの篝火 — すべて消せ', body, null, 'マスをタップ＝そのマスと上下左右が反転。<b>すべて消せ</b>。');
+  puzzleFrame('消えずの篝火 — すべて消せ', body, [
+    { label: '↺ やり直す', fn: () => { PZ.grid = PZ.start.slice(); lightsRender(); } }, { label: '↩ あきらめる', fn: puzzleQuit },
+  ], 'マスをタップ＝そのマスと上下左右が反転。<b>すべて消せ</b>。');
 }
 function lightsPress(i) { lightsToggle(i); if (PZ.grid.every((v) => !v)) return puzzleSolved(); lightsRender(); }
 // --- 鉄箱の倉（箱押し）---
@@ -1694,6 +1716,7 @@ function sokoInit() {
     if (ch === '$' || ch === '*') PZ.boxes.add(k);
     if (ch === '@' || ch === '+') { PZ.px = x; PZ.py = y; }
   }
+  PZ.hist = [];
   sokoRender();
 }
 function sokoMove(dir) {
@@ -1701,7 +1724,9 @@ function sokoMove(dir) {
   const d = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] }[dir]; if (!d) return;
   const nx = PZ.px + d[0], ny = PZ.py + d[1], nk = nx + ',' + ny;
   if (PZ.walls.has(nk)) return;
+  const before = { px: PZ.px, py: PZ.py, boxes: new Set(PZ.boxes) };
   if (PZ.boxes.has(nk)) { const bx = nx + d[0], by = ny + d[1], bk = bx + ',' + by; if (PZ.walls.has(bk) || PZ.boxes.has(bk)) return; PZ.boxes.delete(nk); PZ.boxes.add(bk); }
+  PZ.hist.push(before);
   PZ.px = nx; PZ.py = ny;
   if ([...PZ.targets].every((t) => PZ.boxes.has(t))) return puzzleSolved();
   sokoRender();
@@ -1720,9 +1745,16 @@ function sokoRender() {
   puzzleFrame('鉄箱の倉 — 箱を運べ', body, [
     { label: '←', fn: () => sokoMove('W') }, { label: '→', fn: () => sokoMove('E') },
     { label: '↑', fn: () => sokoMove('N') }, { label: '↓', fn: () => sokoMove('S') },
-    { label: '↺ やり直す', fn: sokoInit }, { label: '↩ あきらめる', fn: puzzleQuit },
-  ], '箱を ◎ 印に全部のせる。スワイプ／矢印／隣マスタップで移動。', sokoMove);
+    { label: '↶ 1手もどす', disabled: !PZ.hist.length, fn: sokoUndo }, { label: '↺ やり直す', fn: sokoInit },
+    { label: '↩ あきらめる', wide: true, fn: puzzleQuit },
+  ], '箱を ◎ 印に全部のせる。スワイプ／矢印（キーボードの矢印キーも可）／隣マスタップで移動。', sokoMove);
 }
+function sokoUndo() { const h = PZ.hist.pop(); if (!h) return; PZ.px = h.px; PZ.py = h.py; PZ.boxes = h.boxes; sokoRender(); }
+document.addEventListener('keydown', (e) => {
+  const dir = { ArrowUp: 'N', ArrowDown: 'S', ArrowLeft: 'W', ArrowRight: 'E' }[e.key];
+  if (!dir || !PZ || PZ.type !== 'sokoban' || PZ.revealed || msgActive()) return;
+  e.preventDefault(); sokoMove(dir);
+});
 // --- 数当て（マスターマインド / 錠前）---
 function mmInit() {
   const rng = mulberry32(PZ.ri * 321 + 13); PZ.code = [];
@@ -1743,7 +1775,7 @@ function mmRender(msg) {
   body.appendChild(row);
   puzzleFrame('封印の錠前 — 数当て', body, [
     { label: '🔓 決定', primary: true, wide: true, fn: mmSubmit }, { label: '↩ あきらめる', wide: true, fn: puzzleQuit },
-  ], (msg ? msg + '<br>' : '') + `数字（上のマスをタップで 1〜6 切替）を合わせろ。◉=位置も一致／○=数字だけ一致。残り ${PZ.max - PZ.history.length} 回。`);
+  ], (msg ? msg + '<br>' : '') + `数字（上のマスをタップで 1〜6 切替）を合わせろ。<b>同じ数字が入ることもある</b>。◉=位置も一致／○=数字だけ一致。残り ${PZ.max - PZ.history.length} 回。`);
 }
 function mmSubmit() {
   const fb = mmFeedback(PZ.guess, PZ.code);
